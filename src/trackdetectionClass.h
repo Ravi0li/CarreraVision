@@ -12,6 +12,7 @@ public:
 
 private:
 	cv::Mat inputImage;		// Uhrsprüngliches Bild
+	cv::Mat workImage;		// Bild an dem gearbeitet wird
 	cv::Mat outputImage;	// Bild mit allen Auswertungen
 	bool debugWin;			// Sollen alle Zusatzfenster angezeigt werden
 };
