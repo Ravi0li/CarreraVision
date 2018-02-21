@@ -1,7 +1,11 @@
 #include "trackdetectionClass.h"
 #include "debugWinOrganizerClass.h"
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/features2d.hpp>
 #include <vector>
+#include <iostream>
+#include <cmath>
+#include <random>
 
 // --------------------------------------------------------------------------
 // Initialisieren
@@ -37,6 +41,9 @@ void TrackDetection::calculate()
 
 	calHSVRange(&workImage);
 	calMorphology(&workImage);
+	std::vector<cv::KeyPoint> keypoints = calBlobDetection(&workImage);
+	calSearchLines(keypoints);
+
 	
 	outputImage = workImage;
 }
@@ -87,6 +94,117 @@ void TrackDetection::calMorphology(cv::Mat *image)
 		DebugWinOrganizer::addWindow(*image, "nach Morphologischen Filter");
 }
 
+// --------------------------------------------------------------------------
+// Ausführen von Morphologischen Operationen
+// --------------------------------------------------------------------------
+std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
+{
+	// Parameter für BlobDetection
+	cv::SimpleBlobDetector::Params params;
+	params.minThreshold = 10;
+	params.maxThreshold = 30;
+	params.filterByArea = false;
+	params.filterByCircularity = false;
+	params.filterByConvexity = false;
+	params.filterByInertia = false;
+	params.filterByColor = true;
+	params.blobColor = 255;
+
+	// BlobDetection durchführen
+	std::vector<cv::KeyPoint> keypoints;
+	cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
+	//cv::SimpleBlobDetector detector(params);
+	detector->detect(*image, keypoints);
+
+	// Textausgabe
+	std::cout << "Trackdetection: Es wurden " << keypoints.size() << " Keypoints gefunden" << std::endl;
+
+	// Anzeigen des Ergebnisses
+	if (debugWin)
+	{
+		cv::Mat keypointsImage(image->rows, image->cols, image->type());
+		cv::drawKeypoints(keypointsImage, keypoints, keypointsImage, cv::Scalar(255, 255, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+		DebugWinOrganizer::addWindow(keypointsImage, "nach der BlobDetection (Keypoints)");
+	}
+
+	return keypoints;
+}
+
+// --------------------------------------------------------------------------
+// Allgorithmus um die Keypoints zu verbinden
+// --------------------------------------------------------------------------
+std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector<cv::KeyPoint> keypoints)
+{
+	std::vector<std::vector<cv::Point2f>> lines;
+	
+	// Parameter
+	float maxDistance = 160;							// Maximaler Abstand der zwei Punkte zueinander haben darf
+	//float maxAngle = 1.5;								// Maximaler Winkel der zum nächsten Punkt auftreten darf (Rad)
+	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
+
+	// Alle Punkte durch gehen
+	while (keypoints.size())
+	{
+		// Erster Punkt der Linie wegspeichern
+		cv::KeyPoint lastKeypoint = keypoints.at(0);
+		std::vector<cv::Point2f> line;
+		line.push_back(lastKeypoint.pt);
+		keypoints.erase(keypoints.begin());
+		// Alle anderen Keypoints durchgehen und immer der Linie anhängen
+		while (keypoints.size())
+		{
+			std::vector<cv::KeyPoint>::iterator nextKeypoint;
+			float bestDistance = maxDistancePow;
+			for (std::vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it)
+			{
+				float xDiff = it->pt.x - lastKeypoint.pt.x;
+				float yDiff = it->pt.y - lastKeypoint.pt.y;
+				float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
+				if (distance < bestDistance)
+				{
+					// Neuer nächster Nachbar gefunden
+					bestDistance = distance;
+					nextKeypoint = it;
+				}
+			}
+			// Kein nächster Nachbar gefunden dann Linie beenden
+			if (bestDistance == maxDistancePow)
+				break;
+			// nächsten Punkt auf der Linie abspeichern
+			lastKeypoint = *nextKeypoint;
+			line.push_back(nextKeypoint->pt);
+			keypoints.erase(nextKeypoint);
+		}
+		// Linie zu der Linienliste hinzufügen
+		lines.push_back(line);
+	}
+
+	// Textausgabe
+	std::cout << "Trackdetection: Es wurden " << lines.size() << " Linien aus den Keypoints berechnet" << std::endl;
+	for(std::vector<cv::Point2f> line : lines)
+		std::cout << "Trackdetection: Linie mit " << line.size() << " Punkten erkannt" << std::endl;
+
+	// Anzeigen des Ergebnisses
+	if (debugWin)
+	{
+		cv::Mat lineImage(inputImage.rows, inputImage.cols, inputImage.type(), cv::Scalar(255, 255, 255));
+		for (std::vector<cv::Point2f> line : lines)
+		{
+			// Eine Linie in einer Farbe zeichnen
+			cv::Point2f lastPt = cv::Point2f(-1, -1);
+			cv::Scalar lineColor = hsvScalar(rand()%180, 255, 255);
+			for (cv::Point2f pt : line)
+			{
+				if (lastPt.x != -1)
+					cv::line(lineImage, lastPt, pt, lineColor, 10);
+				lastPt = pt;
+			}
+		}
+		DebugWinOrganizer::addWindow(lineImage, "nach der Liniendetektion");
+	}
+
+	return lines;
+}
 
 // --------------------------------------------------------------------------
 // Zeigt ein Histogram der Daten an
@@ -127,4 +245,15 @@ void TrackDetection::showHistogram(cv::Mat image, std::string title, int posX, i
 
 	// Anzeigen im Fenster
 	DebugWinOrganizer::addWindow(histImage, title);
+}
+
+// --------------------------------------------------------------------------
+// gibt einen Scalar wert zurück anhand von RGB Werten
+// --------------------------------------------------------------------------
+cv::Scalar TrackDetection::hsvScalar(double h, double s, double v)
+{
+	cv::Mat rgb;
+	cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(h, s, v));
+	cv::cvtColor(hsv, rgb, CV_HSV2RGB);
+	return cv::Scalar((int)rgb.at<cv::Vec3b>(0, 0)[0], (int)rgb.at<cv::Vec3b>(0, 0)[1], (int)rgb.at<cv::Vec3b>(0, 0)[2]);
 }
