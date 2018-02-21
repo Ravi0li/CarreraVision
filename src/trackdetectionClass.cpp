@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include "trackdetectionClass.h"
 #include "debugWinOrganizerClass.h"
 #include <opencv2/imgproc/imgproc.hpp>
@@ -138,9 +139,10 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 	std::vector<std::vector<cv::Point2f>> lines;
 	
 	// Parameter
-	float maxDistance = 160;							// Maximaler Abstand der zwei Punkte zueinander haben darf
-	//float maxAngle = 1.5;								// Maximaler Winkel der zum nächsten Punkt auftreten darf (Rad)
+	float maxDistance = 400;							// Maximaler Abstand der zwei Punkte zueinander haben darf
+	float maxAngle = 1.0;								// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
 	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
+	float k = -maxDistancePow / std::pow(maxAngle, 2);	// Stauchungsfaktor der Parabel
 
 	// Alle Punkte durch gehen
 	while (keypoints.size())
@@ -150,21 +152,35 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 		std::vector<cv::Point2f> line;
 		line.push_back(lastKeypoint.pt);
 		keypoints.erase(keypoints.begin());
+		float lastAngle = -99;
 		// Alle anderen Keypoints durchgehen und immer der Linie anhängen
 		while (keypoints.size())
 		{
 			std::vector<cv::KeyPoint>::iterator nextKeypoint;
 			float bestDistance = maxDistancePow;
+			float bestAngle;
 			for (std::vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it)
 			{
+				// Abstands und Winkelberechnungen
 				float xDiff = it->pt.x - lastKeypoint.pt.x;
 				float yDiff = it->pt.y - lastKeypoint.pt.y;
 				float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
-				if (distance < bestDistance)
+				float angle = atan2(yDiff, xDiff) + M_PI;
+				float difAngle = abs(lastAngle - angle);
+				if (difAngle > M_PI) difAngle = 2 * M_PI - difAngle;
+				//std::cout << difAngle << std::endl;
+				// Prüfen ob Punkt im zugelassenen Winkel und Abstand hat
+				float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
+				if (lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle))
 				{
-					// Neuer nächster Nachbar gefunden
-					bestDistance = distance;
-					nextKeypoint = it;
+					// Prüfen ob er den neuen Bestwert hat
+					if (distance < bestDistance)
+					{
+						// Neuer nächster Nachbar gefunden
+						bestDistance = distance;
+						bestAngle = angle;
+						nextKeypoint = it;
+					}
 				}
 			}
 			// Kein nächster Nachbar gefunden dann Linie beenden
@@ -174,6 +190,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 			lastKeypoint = *nextKeypoint;
 			line.push_back(nextKeypoint->pt);
 			keypoints.erase(nextKeypoint);
+			lastAngle = bestAngle;
 		}
 		// Linie zu der Linienliste hinzufügen
 		lines.push_back(line);
