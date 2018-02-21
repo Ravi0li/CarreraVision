@@ -15,4 +15,8 @@ private:
 	cv::Mat workImage;		// Bild an dem gearbeitet wird
 	cv::Mat outputImage;	// Bild mit allen Auswertungen
 	bool debugWin;			// Sollen alle Zusatzfenster angezeigt werden
+
+	void calHSVRange(cv::Mat *image);
+	void calMorphology(cv::Mat *image);
+	void showHistogram(cv::Mat image, std::string title, int posX, int posY);
 };

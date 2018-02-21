@@ -169,11 +169,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\captureClass.cpp" />
+    <ClCompile Include="src\debugWinOrganizerClass.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\trackdetectionClass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\commandlineparser.h" />
+    <ClInclude Include="src\debugWinOrganizerClass.h" />
     <ClInclude Include="src\trackdetectionClass.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,6 +1,6 @@
 #include "trackdetectionClass.h"
+#include "debugWinOrganizerClass.h"
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui.hpp>
 #include <vector>
 
 // --------------------------------------------------------------------------
@@ -32,12 +32,69 @@ void TrackDetection::setDebugWin(bool _debugWin)
 // --------------------------------------------------------------------------
 void TrackDetection::calculate()
 {
-	// H: 0 - 180, S: 0 - 255, V: 0 - 255
-	cv::cvtColor(inputImage, workImage, CV_RGB2HSV);
+	cv::Mat workImage;
+	workImage = inputImage;
+
+	calHSVRange(&workImage);
+	calMorphology(&workImage);
 	
-	// Histogramm
+	outputImage = workImage;
+}
+
+// --------------------------------------------------------------------------
+// Rückgabe des Bildes mit allen Auswerteinformationen
+// --------------------------------------------------------------------------
+cv::Mat TrackDetection::getResultPicture()
+{
+	return outputImage;
+}
+
+// --------------------------------------------------------------------------
+// Filtert die Daten anhand der HSV Daten
+// --------------------------------------------------------------------------
+void TrackDetection::calHSVRange(cv::Mat *image)
+{
+	// Konvertieren in HSV
+	// H: 0 - 180, S: 0 - 255, V: 0 - 255
+	cv::cvtColor(*image, *image, CV_RGB2HSV);
+
+	// Anzeigen eines Histogram
+	if (debugWin)
+		showHistogram(*image, "Historgramm HSV", 0, 0);
+
+	// Range Operationen
+	cv::inRange(*image, cv::Scalar(100, 100, 40), cv::Scalar(140, 256, 230), *image);
+
+	// Anzeigen des Ergebnisses
+	if (debugWin)
+		DebugWinOrganizer::addWindow(*image, "nach HSV-Range-Filter");
+}
+
+// --------------------------------------------------------------------------
+// Ausführen von Morphologischen Operationen
+// --------------------------------------------------------------------------
+void TrackDetection::calMorphology(cv::Mat *image)
+{
+	// Morphologische Operation
+	cv::Mat pattern1(5, 5, CV_8U, cv::Scalar(1));
+	cv::morphologyEx(*image, *image, cv::MORPH_OPEN, pattern1);
+	//cv::Mat pattern2(60, 60, CV_8U, cv::Scalar(1));
+	//cv::Mat pattern2 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(21, 21), cv::Point(10, 10));
+	//cv::morphologyEx(workImage, workImage, cv::MORPH_CLOSE, pattern2);
+
+	// Anzeigen des Ergebnisses
+	if (debugWin)
+		DebugWinOrganizer::addWindow(*image, "nach Morphologischen Filter");
+}
+
+
+// --------------------------------------------------------------------------
+// Zeigt ein Histogram der Daten an
+// --------------------------------------------------------------------------
+void TrackDetection::showHistogram(cv::Mat image, std::string title, int posX, int posY)
+{
 	std::vector<cv::Mat> hsv;
-	cv::split(workImage, hsv);
+	cv::split(image, hsv);
 	int numbins = 256;
 	float range[] = { 0, 256 };
 	const float* histRange = { range };
@@ -67,19 +124,7 @@ void TrackDetection::calculate()
 			cv::Point(binStep*(i), height - cvRound(r_hist.at<float>(i))),
 			cv::Scalar(0, 0, 255));
 	}
-	cv::imshow("Histogram", histImage);
 
-	// Range Operationen
-	cv::Mat workImage2;
-	cv::inRange(workImage, cv::Scalar(100, 100, 40), cv::Scalar(140, 256, 230), workImage2);
-
-	outputImage = workImage2;
-}
-
-// --------------------------------------------------------------------------
-// Rückgabe des Bildes mit allen Auswerteinformationen
-// --------------------------------------------------------------------------
-cv::Mat TrackDetection::getResultPicture()
-{
-	return outputImage;
+	// Anzeigen im Fenster
+	DebugWinOrganizer::addWindow(histImage, title);
 }
