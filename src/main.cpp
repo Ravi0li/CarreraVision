@@ -15,17 +15,26 @@ int main(int argc, const char** argv)
 		return 0;
 	}
 
-	// Datei laden
-	std::string filename = parser.get<std::string>("trackimg");
-	cv::Mat image = cv::imread(filename, 1);
+	// Trackimage laden
+	std::string TrackimgFile = parser.get<std::string>("trackimg");
+	cv::Mat image = cv::imread(TrackimgFile, 1);
 	if (image.empty())
 	{
-		std::cout << "Cannot read image file: " << filename << std::endl;
+		std::cout << "Cannot read image file: " << TrackimgFile << std::endl;
+		return -1;
+	}
+
+	// Parameterdatei öffnen
+	std::string paraFile = parser.get<std::string>("para");
+	cv::FileStorage para;
+	if (!para.open(paraFile, cv::FileStorage::READ))
+	{
+		std::cout << "Cannot read para file: " << paraFile << std::endl;
 		return -1;
 	}
 
 	// Strecken auswertung
-	TrackDetection trackDetection;
+	TrackDetection trackDetection(para["track_detection"]);
 	trackDetection.setDebugWin(parser.get<bool>("debugwin"));
 	trackDetection.setPicture(image);
 	trackDetection.calculate();

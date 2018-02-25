@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<opencv_storage>
+ <!-- Allgemeine Infos -->
+ <author>"Oliver Holstein"</author>
+ <date>"2018-02-25"</date>
+
+ <!-- Erkennung der Strecke -->
+ <track_detection>
+   <hsv_range>
+     <min_h>100</min_h>
+     <min_s>100</min_s>
+     <min_v>40</min_v>
+     <max_h>140</max_h>
+     <max_s>256</max_s>
+     <max_v>230</max_v>
+   </hsv_range>
+   <morphology>
+     <morph_size>5</morph_size>
+   </morphology>
+   <blob_detection>
+     <min_threshold>10</min_threshold>
+     <max_threshold>30</max_threshold>
+     <blob_color>255</blob_color>
+   </blob_detection>
+   <search_lines>
+     <max_distance>300</max_distance>
+     <max_angle>1.0</max_angle>
+   </search_lines>
+ </track_detection>
+ 
+</opencv_storage>

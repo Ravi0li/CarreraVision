@@ -13,10 +13,11 @@
 // --------------------------------------------------------------------------
 // Initialisieren
 // --------------------------------------------------------------------------
-TrackDetection::TrackDetection()
+TrackDetection::TrackDetection(cv::FileNode _para)
 {
+	para = _para;
 	debugWin = false;
-	srand(time(NULL));
+	srand((unsigned int)time(NULL));
 }
 
 // --------------------------------------------------------------------------
@@ -83,6 +84,9 @@ cv::Mat TrackDetection::getResultPicture()
 // --------------------------------------------------------------------------
 void TrackDetection::calHSVRange(cv::Mat *image)
 {
+	// Parameter auslesen
+	cv::FileNode val = para["hsv_range"];
+
 	// Konvertieren in HSV
 	// H: 0 - 180, S: 0 - 255, V: 0 - 255
 	cv::cvtColor(*image, *image, CV_RGB2HSV);
@@ -92,7 +96,7 @@ void TrackDetection::calHSVRange(cv::Mat *image)
 		showHistogram(*image, "Historgramm HSV", 0, 0);
 
 	// Range Operationen
-	cv::inRange(*image, cv::Scalar(100, 100, 40), cv::Scalar(140, 256, 230), *image);
+	cv::inRange(*image, cv::Scalar((int)val["min_h"], (int)val["min_s"], (int)val["min_v"]), cv::Scalar((int)val["max_h"], (int)val["max_s"], (int)val["max_v"]), *image);
 
 	// Anzeigen des Ergebnisses
 	if (debugWin)
@@ -104,9 +108,14 @@ void TrackDetection::calHSVRange(cv::Mat *image)
 // --------------------------------------------------------------------------
 void TrackDetection::calMorphology(cv::Mat *image)
 {
+	// Parameter auslesen
+	cv::FileNode val = para["morphology"];
+	
 	// Morphologische Operation
-	cv::Mat pattern1(5, 5, CV_8U, cv::Scalar(1));
+	cv::Mat pattern1((int)val["morph_size"], (int)val["morph_size"], CV_8U, cv::Scalar(1));
 	cv::morphologyEx(*image, *image, cv::MORPH_OPEN, pattern1);
+
+	// Alternatives Pattern
 	//cv::Mat pattern2(60, 60, CV_8U, cv::Scalar(1));
 	//cv::Mat pattern2 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(21, 21), cv::Point(10, 10));
 	//cv::morphologyEx(workImage, workImage, cv::MORPH_CLOSE, pattern2);
@@ -121,16 +130,19 @@ void TrackDetection::calMorphology(cv::Mat *image)
 // --------------------------------------------------------------------------
 std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
 {
+	// Parameter auslesen
+	cv::FileNode val = para["blob_detection"];
+	
 	// Parameter für BlobDetection
 	cv::SimpleBlobDetector::Params params;
-	params.minThreshold = 10;
-	params.maxThreshold = 30;
+	params.minThreshold = (float)val["min_threshold"];
+	params.maxThreshold = (float)val["max_threshold"];
 	params.filterByArea = false;
 	params.filterByCircularity = false;
 	params.filterByConvexity = false;
 	params.filterByInertia = false;
 	params.filterByColor = true;
-	params.blobColor = 255;
+	params.blobColor = (int)val["blob_color"];
 
 	// BlobDetection durchführen
 	std::vector<cv::KeyPoint> keypoints;
@@ -157,11 +169,13 @@ std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
 // --------------------------------------------------------------------------
 std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector<cv::KeyPoint> keypoints)
 {
-	std::vector<std::vector<cv::Point2f>> lines;
+	// Parameter auslesen
+	cv::FileNode val = para["search_lines"];
 	
 	// Parameter
-	float maxDistance = 300;							// Maximaler Abstand der zwei Punkte zueinander haben darf
-	float maxAngle = 1.0;								// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
+	std::vector<std::vector<cv::Point2f>> lines;
+	float maxDistance = (float)val["max_distance"];		// Maximaler Abstand der zwei Punkte zueinander haben darf
+	float maxAngle = (float)val["max_angle"];			// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
 	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
 	float k = -maxDistancePow / std::pow(maxAngle, 2);	// Stauchungsfaktor der Parabel
 
@@ -170,8 +184,6 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 	{
 		// Erster Punkt der Linie wegspeichern
 		int numKey = rand() % keypoints.size();
-		//cv::KeyPoint lastKeypoint = keypoints.at(numKey);
-		//cv::KeyPoint lastKeypoint = keypoints.at(0);
 		std::vector<cv::Point2f> line;
 		line.push_back(keypoints.at(numKey).pt);
 		keypoints.erase(keypoints.begin() + numKey);
@@ -193,9 +205,9 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 					float xDiff = it->pt.x - line.at(line.size() - 1).x;
 					float yDiff = it->pt.y - line.at(line.size() - 1).y;
 					float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
-					float angle = atan2(yDiff, xDiff) + M_PI;
+					float angle = atan2(yDiff, xDiff) + (float)M_PI;
 					float difAngle = abs(lastAngle - angle);
-					if (difAngle > M_PI) difAngle = 2 * M_PI - difAngle;
+					if (difAngle > M_PI) difAngle = 2 * (float)M_PI - difAngle;
 					// Prüfen ob Punkt im zugelassenen Winkel und Abstand hat
 					float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
 					if (lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle))
@@ -214,7 +226,6 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 				if (bestDistance == maxDistancePow)
 					break;
 				// nächsten Punkt auf der Linie abspeichern
-				//lastKeypoint = *nextKeypoint;
 				line.push_back(nextKeypoint->pt);
 				keypoints.erase(nextKeypoint);
 				lastAngle = bestAngle;
@@ -226,7 +237,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 			{
 				float xDiff = line.at(line.size() - 1).x - line.at(line.size() - 2).x;
 				float yDiff = line.at(line.size() - 1).y - line.at(line.size() - 2).y;
-				lastAngle = atan2(yDiff, xDiff) + M_PI;
+				lastAngle = atan2(yDiff, xDiff) + (float)M_PI;
 			}
 		} while (again);
 		// Linie zu der Linienliste hinzufügen
@@ -260,7 +271,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 				else
 				{
 					// Beschriftung zeichnen
-					cv::putText(lineImage, std::to_string(counter), cv::Point(pt.x, pt.y), cv::FONT_HERSHEY_SCRIPT_SIMPLEX, 2, lineColor, 5);
+					cv::putText(lineImage, std::to_string(counter), cv::Point((int)pt.x, (int)pt.y), cv::FONT_HERSHEY_SCRIPT_SIMPLEX, 2, lineColor, 5);
 				}
 				lastPt = pt;
 			}
@@ -276,9 +287,12 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 // --------------------------------------------------------------------------
 bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 {
+	// Parameter auslesen
+	cv::FileNode val = para["search_lines"];
+
 	// Parameter
-	float maxDistance = 300;							// Maximaler Abstand der zwei Punkte zueinander haben darf
-	float maxAngle = 1.0;								// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
+	float maxDistance = (float)val["max_distance"];		// Maximaler Abstand der zwei Punkte zueinander haben darf
+	float maxAngle = (float)val["max_angle"];			// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
 	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
 	float k = -maxDistancePow / std::pow(maxAngle, 2);	// Stauchungsfaktor der Parabel
 
@@ -294,12 +308,12 @@ bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 			float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
 			xDiff = line->at(1).x - line->at(0).x;
 			yDiff = line->at(1).y - line->at(0).y;
-			float angle1 = atan2(yDiff, xDiff) + M_PI;
+			float angle1 = atan2(yDiff, xDiff) + (float)M_PI;
 			xDiff = line->at(line->size() - 1).x - line->at(line->size() - 2).x;
 			yDiff = line->at(line->size() - 1).y - line->at(line->size() - 2).y;
-			float angle2 = atan2(yDiff, xDiff) + M_PI;
+			float angle2 = atan2(yDiff, xDiff) + (float)M_PI;
 			float difAngle = abs(angle1 - angle2);
-			if (difAngle > M_PI) difAngle = 2 * M_PI - difAngle;
+			if (difAngle > (float)M_PI) difAngle = 2 * (float)M_PI - difAngle;
 			float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
 			// Prüfen ob auch Verbindugslinie passt
 			if (distance < maxDistanceFromFunction && difAngle < maxAngle)
@@ -332,10 +346,6 @@ bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 void TrackDetection::calCreatTrackMask(cv::Mat *image, std::vector<std::vector<cv::Point2f>> lines)
 {
 	*image = cv::Scalar(0, 0, 0);
-	// Den ersten Punkt noch mal hinten anhängen
-	//lines.at(0).push_back(lines.at(0).at(0));
-	// Linien Objekt erstellen
-	//cv::fillPoly(*image, lines, cv::Scalar(255));
 
 	std::vector<cv::Point> paintVec1;
 	for (int i = 0; i < lines.at(0).size(); i++)
@@ -353,20 +363,17 @@ void TrackDetection::calCreatTrackMask(cv::Mat *image, std::vector<std::vector<c
 	paintVecs.push_back(paintVec1);
 	paintVecs.push_back(paintVec2);
 	cv::fillPoly(*image, paintVecs, cv::Scalar(255, 255, 255));
-	//cv::fillConvexPoly(*image, paintVec, cv::Scalar(255,255,255));
 
-	/*std::vector<cv::Point> tmp = lines.at(0);
-	const cv::Point* elementPoints[1] = { &tmp[0] };
-	int numberOfPoints = (int)tmp.size();
-	fillPoly(*image, elementPoints, &numberOfPoints, 1, cv::Scalar(255, 255, 255), 8);*/
+
+	/*
 	for (int j = 0; j < lines.at(0).size(); j++)
 	{
-		cv::line(*image, lines.at(0).at(j), lines.at(0).at((j+1)%lines.at(0).size()), cv::Scalar(255), 3, 8);
+		cv::line(*image, lines.at(0).at(j), lines.at(0).at((j+1)%lines.at(0).size()), cv::Scalar(255, 0, 0), 3, 8);
 	}
 	for (int j = 0; j < lines.at(1).size(); j++)
 	{
-		cv::line(*image, lines.at(1).at(j), lines.at(1).at((j + 1) % lines.at(1).size()), cv::Scalar(255), 3, 8);
-	}
+		cv::line(*image, lines.at(1).at(j), lines.at(1).at((j + 1) % lines.at(1).size()), cv::Scalar(255, 0, 0), 3, 8);
+	}*/
 }
 
 // --------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 class TrackDetection
 {
 public:
-	TrackDetection();
+	TrackDetection(cv::FileNode _para);
 	void setPicture(cv::Mat _inputImage);
 	void setDebugWin(bool _debugWin);
 	void calculate();
@@ -15,6 +15,7 @@ private:
 	cv::Mat workImage;		// Bild an dem gearbeitet wird
 	cv::Mat outputImage;	// Bild mit allen Auswertungen
 	bool debugWin;			// Sollen alle Zusatzfenster angezeigt werden
+	cv::FileNode para;	    // Parameter zur Auswertung
 
 	void calHSVRange(cv::Mat *image);
 	void calMorphology(cv::Mat *image);
