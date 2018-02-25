@@ -20,6 +20,8 @@ private:
 	void calMorphology(cv::Mat *image);
 	std::vector<cv::KeyPoint> calBlobDetection(cv::Mat *image);
 	std::vector<std::vector<cv::Point2f>> calSearchLines(std::vector<cv::KeyPoint> keypoints);
+	bool calCheckLines(std::vector<std::vector<cv::Point2f>> *lines);
+	void calCreatTrackMask(cv::Mat *image, std::vector<std::vector<cv::Point2f>> lines);
 
 	void showHistogram(cv::Mat image, std::string title, int posX, int posY);
 	cv::Scalar hsvScalar(double h, double s, double v);
