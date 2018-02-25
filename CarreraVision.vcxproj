@@ -71,19 +71,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>tmp\$(Configuration)_$(Platform)</IntDir>
+    <IntDir>tmp\$(Configuration)_$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>tmp\$(Configuration)_$(Platform)</IntDir>
+    <IntDir>tmp\$(Configuration)_$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>tmp\$(Configuration)_$(Platform)</IntDir>
+    <IntDir>tmp\$(Configuration)_$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
-    <IntDir>tmp\$(Configuration)_$(Platform)</IntDir>
+    <IntDir>tmp\$(Configuration)_$(Platform)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -99,7 +99,8 @@
       <SubSystem>NotSet</SubSystem>
     </Link>
     <PostBuildEvent>
-      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340d.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340d.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
     <PreLinkEvent>
       <Command>
@@ -120,7 +121,8 @@
       <SubSystem>NotSet</SubSystem>
     </Link>
     <PostBuildEvent>
-      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340d.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340d.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
     <PreLinkEvent>
       <Command>
@@ -144,7 +146,8 @@
       <AdditionalDependencies>opencv_world340.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -164,7 +167,8 @@
       <AdditionalDependencies>opencv_world340.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+      <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
