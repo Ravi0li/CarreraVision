@@ -25,7 +25,7 @@ TrackDetection::TrackDetection(cv::FileNode _para)
 // --------------------------------------------------------------------------
 void TrackDetection::setPicture(cv::Mat _inputImage)
 {
-	inputImage = _inputImage;
+	_inputImage.copyTo(inputImage);
 }
 
 // --------------------------------------------------------------------------
@@ -39,18 +39,18 @@ void TrackDetection::setDebugWin(bool _debugWin)
 // --------------------------------------------------------------------------
 // Auswertung des Streckenbildes
 // --------------------------------------------------------------------------
-void TrackDetection::calculate()
+bool TrackDetection::calculate()
 {
-	cv::Mat workImage;
-	workImage = inputImage;
+	cv::Mat binaryImage;
+	inputImage.copyTo(binaryImage);
 
 	clock_t start, finisch;
 	start = clock();
 
-	// Alle Verarbeitungsschritte
-	calHSVRange(&workImage);
-	calMorphology(&workImage);
-	std::vector<cv::KeyPoint> keypoints = calBlobDetection(&workImage);
+	// Alle Verarbeitungsschritte abarbeiten
+	calHSVRange(&binaryImage);
+	calMorphology(&binaryImage);
+	std::vector<cv::KeyPoint> keypoints = calBlobDetection(&binaryImage);
 	int counter = 0;
 	std::vector<std::vector<cv::Point2f>> lines;
 	do {
@@ -58,17 +58,18 @@ void TrackDetection::calculate()
 		if (counter > 5)
 		{
 			std::cout << "Fehler: Es konnten keine sinvollen Streckenbegrenzungen berechnet werden!" << std::endl;
-			outputImage = workImage;
-			return;
+			binaryImage.copyTo(outputImage);
+			return false;
 		}
 		lines = calSearchLines(keypoints);
 	} while (!calCheckLines(&lines));
-	calCreatTrackMask(&workImage, lines);
+	calCreatTrackMask(lines);
+	if (!calLanes(lines)) return false;
 
 	finisch = clock();
 	std::cout << "Streckenerkennung abgeschlossen (" << finisch - start << "ms)";
 	
-	outputImage = workImage;
+	return true;
 }
 
 // --------------------------------------------------------------------------
@@ -78,6 +79,15 @@ cv::Mat TrackDetection::getResultPicture()
 {
 	return outputImage;
 }
+
+// --------------------------------------------------------------------------
+// Rückgabe der Bildmaske zum Ausblenden von Teilen
+// --------------------------------------------------------------------------
+cv::Mat TrackDetection::getMaskPicture()
+{
+	return maskImage;
+}
+
 
 // --------------------------------------------------------------------------
 // Filtert die Daten anhand der HSV Daten
@@ -156,7 +166,7 @@ std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
 	// Anzeigen des Ergebnisses
 	if (debugWin)
 	{
-		cv::Mat keypointsImage(image->rows, image->cols, image->type());
+		cv::Mat keypointsImage(image->rows, image->cols, image->type(), cv::Scalar(0, 0, 0));
 		cv::drawKeypoints(keypointsImage, keypoints, keypointsImage, cv::Scalar(255, 255, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 		DebugWinOrganizer::addWindow(keypointsImage, "nach der BlobDetection (Keypoints)");
 	}
@@ -343,10 +353,9 @@ bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 // --------------------------------------------------------------------------
 // Erstellt die Maske für die Strecke
 // --------------------------------------------------------------------------
-void TrackDetection::calCreatTrackMask(cv::Mat *image, std::vector<std::vector<cv::Point2f>> lines)
+void TrackDetection::calCreatTrackMask(std::vector<std::vector<cv::Point2f>> lines)
 {
-	*image = cv::Scalar(0, 0, 0);
-
+	// umkopieren der Vektoren in das richtige Format
 	std::vector<cv::Point> paintVec1;
 	for (int i = 0; i < lines.at(0).size(); i++)
 	{
@@ -362,18 +371,334 @@ void TrackDetection::calCreatTrackMask(cv::Mat *image, std::vector<std::vector<c
 	std::vector<std::vector<cv::Point>> paintVecs;
 	paintVecs.push_back(paintVec1);
 	paintVecs.push_back(paintVec2);
-	cv::fillPoly(*image, paintVecs, cv::Scalar(255, 255, 255));
 
+	// Zeichnen der Maske
+	maskImage.create(inputImage.rows, inputImage.cols, CV_8U);
+	maskImage.setTo(cv::Scalar(0));
+	cv::fillPoly(maskImage, paintVecs, cv::Scalar(255));
 
-	/*
-	for (int j = 0; j < lines.at(0).size(); j++)
+	// Debugfenster anzeigen
+	if (debugWin)
+		DebugWinOrganizer::addWindow(maskImage, "Generierte Maske zum Ausblenden");
+
+	// Anwenden der Maske auf das Ausgabebild
+	inputImage.copyTo(outputImage, maskImage);
+}
+
+// --------------------------------------------------------------------------
+// Berechnet die Fahrspuren und zeichnet sie ein
+// --------------------------------------------------------------------------
+bool TrackDetection::calLanes(std::vector<std::vector<cv::Point2f>> lines)
+{
+	// Die zwei auszuwertenden Spuren teilen
+	std::vector<cv::Point2f> line1, line2;
+	linesDir line1dir, line2dir;
+	line1 = lines[0];
+	line2 = lines[1];
+
+	// Ausrichtung der Seitenlinie zur Fahrspur analysieren
+	if (!calLanesSideDirection(&line1, &line2, &line1dir, &line2dir)) return false;
+
+	// Querlinien zur Fahrspurmittelung auslesen
+	std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines;
+	calLanesCrossLines(line1, line2, line1dir, &crosslines, false);
+	calLanesCrossLines(line2, line1, line2dir, &crosslines, true);
+
+	// Spurenlinien berechnen (unregelmäsige Abstände)
+	std::vector<cv::Point2f> lane1i, lane2i;
+	calLanesIrregular(&lane1i, &lane2i, crosslines);
+
+	return true;
+}
+
+// --------------------------------------------------------------------------
+// Analysiert ob die Fahrspur rechts oder Links von den Linien liegen
+// --------------------------------------------------------------------------
+bool TrackDetection::calLanesSideDirection(std::vector<cv::Point2f> *line1, std::vector<cv::Point2f> *line2, linesDir *line1dir, linesDir *line2dir)
+{
+	cv::Mat lineDirectionImage;
+	if (debugWin)
+		outputImage.copyTo(lineDirectionImage);
+	
+	// Ausrichtung der ersten Linie zur Fahrspur analysieren
+	int count = 0;
+	bool left, right;
+	int line1id;
+	cv::Point2f line1Vec;
+	bool trySwitch = true;
+	do {
+		count++;
+		// Zzfälligen Punkt wählen
+		line1id = rand() % (line1->size() - 1);
+		// Vector und Punkt berechnen
+		cv::Point2f vector, point;
+		vector.x = (*line1)[line1id + 1].x - (*line1)[line1id].x;
+		vector.y = (*line1)[line1id + 1].y - (*line1)[line1id].y;
+		point.x = ((*line1)[line1id + 1].x + (*line1)[line1id].x) * 0.5f;
+		point.y = ((*line1)[line1id + 1].y + (*line1)[line1id].y) * 0.5f;
+		// Alle Punkte auf der anderen Gerade durchgehen und schauen auf welcher Seite sie von dem Vektor liegen
+		left = false;
+		right = false;
+		for (int i = 0; i < line2->size(); i++)
+		{
+			float r = vector.y * ((*line2)[i].x - point.x) - vector.x * ((*line2)[i].y - point.y);
+			if (r > 0) right = true;
+			if (r < 0) left = true;
+		}
+		// Ist die Ausrichtung an dieser Stelle eindeutig?
+		if (right && !left || !right && left)
+		{
+			float t = vector.x;
+			vector.x = vector.y;
+			vector.y = t;
+			if (right) vector.y = -vector.y;
+			if (left) vector.x = -vector.x;
+			line1Vec.x = vector.x;
+			line1Vec.y = vector.y;
+			if (debugWin)
+			{
+				cv::Point2f midPoint2(point.x + vector.x, point.y + vector.y);
+				cv::line(lineDirectionImage, point, midPoint2, cv::Scalar(255,0,0), 10);
+			}
+		}
+		// Nach 50 Punkten sollte ein eindeutiger Punkt dabei sein
+		if (count == 50)
+		{
+			// Evtl, wurde die innere Bahn zur Analyse verwendet, probieren mal die andere aus
+			if (trySwitch)
+			{
+				trySwitch = false;
+				std::vector<cv::Point2f> lineTemp;
+				lineTemp = *line1;
+				*line1 = *line2;
+				*line2 = lineTemp;
+				count = 0;
+			}
+			else
+			{
+				std::cout << "Fehler: Auf der 1. Linie konnte kein eindeutiger Richtung zur Fahrspuhrenmittelung gefunden werden." << std::endl;
+				return false;
+			}
+		}
+	} while (!(right && !left || !right && left));
+	if (right) *line1dir = RIGHT;
+	if (left) *line1dir = LEFT;
+	std::cout << "Linienausrichtung der aeusseren Spur zur Fahrspur erfolgreich erkannt" << std::endl;
+
+	// Ausrichtung der zweiten Linie zur Fahrspur erkennen
+	int id;
+	float bestDistance = 3E+38f;
+	// Prüfen welches der nächste Punkt ist
+	for (int i = 0; i < line2->size() - 1; i++)
 	{
-		cv::line(*image, lines.at(0).at(j), lines.at(0).at((j+1)%lines.at(0).size()), cv::Scalar(255, 0, 0), 3, 8);
+		float distance = pow((*line2)[i].x - (*line1)[line1id].x, 2) + pow((*line2)[i].y - (*line1)[line1id].y, 2);
+		if (bestDistance > distance)
+		{
+			bestDistance = distance;
+			id = i;
+		}
 	}
-	for (int j = 0; j < lines.at(1).size(); j++)
+	// Ausrichtung zur ersten Linie prüfen
+	cv::Point2f vector, point;
+	vector.x = (*line2)[id + 1].x - (*line2)[id].x;
+	vector.y = (*line2)[id + 1].y - (*line2)[id].y;
+	point.x = ((*line2)[id + 1].x + (*line2)[id].x) * 0.5f;
+	point.y = ((*line2)[id + 1].y + (*line2)[id].y) * 0.5f;
+	// Vektor nach rechts drehen
+	float t = vector.x;
+	vector.x = vector.y;
+	vector.y = t;
+	vector.y = -vector.y;
+	// Prüfen ob drehung sinvoll und dann abspeichern
+	float lenghtAdd = pow(line1Vec.x + vector.x, 2) + pow(line1Vec.y + vector.y, 2);
+	float lenghtSub = pow(line1Vec.x - vector.x, 2) + pow(line1Vec.y - vector.y, 2);
+	if (lenghtAdd > lenghtSub) *line2dir = LEFT;
+	else                       *line2dir = RIGHT;
+	// Debuganzeige
+	if (debugWin && *line2dir == RIGHT)
 	{
-		cv::line(*image, lines.at(1).at(j), lines.at(1).at((j + 1) % lines.at(1).size()), cv::Scalar(255, 0, 0), 3, 8);
-	}*/
+		cv::Point2f midPoint2(point.x + vector.x, point.y + vector.y);
+		cv::line(lineDirectionImage, point, midPoint2, cv::Scalar(0, 0, 255), 10);
+	}
+	else if (debugWin)
+	{
+		cv::Point2f midPoint2(point.x - vector.x, point.y - vector.y);
+		cv::line(lineDirectionImage, point, midPoint2, cv::Scalar(0, 0, 255), 10);
+	}
+	if (debugWin)
+		DebugWinOrganizer::addWindow(lineDirectionImage, "Ausrichtung der Seitenlinien");
+
+	return 1;
+}
+
+// --------------------------------------------------------------------------
+// Gibt alle Querlinien zur auswertung der Fahrspuren zurück
+// In dieser Funktion wird viel mit double gearbeitet, da bei senkrechten und
+// wagerechten Crosslines Werte naha 0 raus kommen. Hire wird die doppelte
+// Genauigkeit benötigt.
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesCrossLines(std::vector<cv::Point2f> baseLines, std::vector<cv::Point2f> targetLines, linesDir baseDir, std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines, bool invertLines)
+{
+	cv::Mat crossLinesImage;
+	if (debugWin)
+		outputImage.copyTo(crossLinesImage);
+	
+	// Alle Abschnitte der Linie durchgehen
+	for (int i = 0; i < baseLines.size(); i++)
+	{
+		// Immer zwei Punkte aus der Linienfolge nehmen
+		cv::Point2d l1p1, l1p2;
+		l1p1 = baseLines[i];
+		if (i < baseLines.size() - 1)
+			l1p2 = baseLines[i + 1];
+		else
+			l1p2 = baseLines[0];
+		// Berechnen des Mittelpunktes und des Vektors
+		cv::Point2d vector, point;
+		vector.x = l1p2.x - l1p1.x;
+		vector.y = l1p2.y - l1p1.y;
+		point.x = (l1p1.x + l1p2.x) * 0.5;
+		point.y = (l1p1.y + l1p2.y) * 0.5;
+		// Vektor drehen
+		double t = vector.x;
+		vector.x = vector.y;
+		vector.y = t;
+		if (baseDir == RIGHT) vector.y = -vector.y;
+		if (baseDir == LEFT) vector.x = -vector.x;
+		// zwei Punkte auf der Senkrechten speichern
+		l1p1 = point;
+		l1p2 = point + vector;
+		// Prüfen welche Strecke sich von der anderen Linienfolge mit der Senkrechten schneidet
+		double bestDistance = 3E+38f;
+		cv::Point2d bestPoint(-1, -1);
+		for (int i = 0; i < targetLines.size(); i++)
+		{
+			cv::Point2d l2p1, l2p2;
+			l2p1 = targetLines[i];
+			if (i < targetLines.size() - 1)
+				l2p2 = targetLines[i + 1];
+			else
+				l2p2 = targetLines[0];
+			// Schnittpunkt berechnen beider Geraden
+			cv::Point2d stp;
+			stp.x = (-l1p2.x*l2p1.x*l1p1.y + l1p2.x*l2p2.x*l1p1.y + l1p1.x*l2p1.x*l1p2.y - l1p1.x*l2p2.x*l1p2.y + l1p1.x*l2p2.x*l2p1.y - l1p2.x*l2p2.x*l2p1.y - l1p1.x*l2p1.x*l2p2.y + l1p2.x*l2p1.x*l2p2.y) /
+				(-l2p1.x*l1p1.y + l2p2.x*l1p1.y + l2p1.x*l1p2.y - l2p2.x*l1p2.y + l1p1.x*l2p1.y - l1p2.x*l2p1.y - l1p1.x*l2p2.y + l1p2.x*l2p2.y);
+			stp.y = (l2p2.y - l2p1.y) / (l2p2.x - l2p1.x) * (stp.x - l2p1.x) + l2p1.y;
+			// Breite der CrossLine berechnen
+			double distance = pow(stp.x - point.x, 2) + pow(stp.y - point.y, 2);
+			// Prüfen ob der Schnittpunkt auch auf der Strecke zwischen den Punkten liegt
+			double vecFac2 = (stp.x - l2p1.x) / (l2p2.x - l2p1.x);
+			double vecFac1 = (stp.x - point.x) / (vector.x);
+			// Wenn alles erfüllt, dann als neusten nächsten Schnittpunkt merken
+			if (bestDistance > distance && vecFac2 >= 0 && vecFac2 <= 1 && vecFac1 > 0)
+			{
+				bestDistance = distance;
+				bestPoint = stp;
+			}
+		}
+		// Wenn eine Sinvolle Crossline gefunden wurde abspeichern
+		if (bestPoint.x != -1)
+		{
+			std::pair<cv::Point2f, cv::Point2f> crossline;
+			// Ausrichtung der Crossline beachten damit am ende alle in die selbe Richtung gehen
+			if (invertLines)
+			{
+				crossline.first = bestPoint;
+				crossline.second = point;
+			}
+			else
+			{
+				crossline.first = point;
+				crossline.second = bestPoint;
+			}
+			crosslines->push_back(crossline);
+			// Infofenster zum Debuggen
+			if (debugWin)
+			{
+				cv::line(crossLinesImage, crossline.first, crossline.second, cv::Scalar(0, 0, 255), 2);
+				cv::circle(crossLinesImage, crossline.first, 2, cv::Scalar(0, 255, 0), 4);
+				cv::circle(crossLinesImage, crossline.second, 2, cv::Scalar(255, 0, 170), 4);
+			}
+		}
+	}
+
+	// Debugfenster anzeigen
+	if (debugWin)
+		DebugWinOrganizer::addWindow(crossLinesImage, "Querlinien einzeichnen für eine Seite");
+}
+
+// --------------------------------------------------------------------------
+// Berechnet zwei Linien mit Punkten unregelmäsigen Abstandes, die die
+// Fahrspuren darstellen
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
+{
+	// Prozentuale Aufteilung der Farbahn
+	float sideToLane1 = 0.28;
+	float sideToLane2 = 1 - sideToLane1;
+	// Alle Querlinien durchgehen und Punkte zu den Spuren hinzufügen
+	std::vector<cv::Point2f> lane1u, lane2u;
+	for (int i = 0; i < crosslines.size(); i++)
+	{
+		// Vektor zwischen den zwei punkten berechnen
+		cv::Point2f vec;
+		vec.x = crosslines[i].second.x - crosslines[i].first.x;
+		vec.y = crosslines[i].second.y - crosslines[i].first.y;
+		// Jeder Spur pro Crossline einen Punkt hinzufügen
+		cv::Point2f lane1Point, lane2Point;
+		lane1Point.x = crosslines[i].first.x + sideToLane1 * vec.x;
+		lane2Point.x = crosslines[i].first.x + sideToLane2 * vec.x;
+		lane1Point.y = crosslines[i].first.y + sideToLane1 * vec.y;
+		lane2Point.y = crosslines[i].first.y + sideToLane2 * vec.y;
+		lane1u.push_back(lane1Point);
+		lane2u.push_back(lane2Point);
+		//cv::circle(outputImage, lane1Point, 2, cv::Scalar(0, 255, 0), 4);
+		//cv::circle(outputImage, lane2Point, 2, cv::Scalar(255, 0, 0), 4);
+	}
+	// Sortieren der Punkte nach ihrer Reinfolge
+	calLanesIrregularSort(lane1u, lane1i);
+	calLanesIrregularSort(lane2u, lane2i);
+	// Debugfenster anzeigen
+	if (debugWin)
+	{
+		cv::Mat lanesImage;
+		outputImage.copyTo(lanesImage);
+		for (int i = 0; i < lane1i->size() - 1; i++)
+			cv::line(lanesImage, (*lane1i)[i], (*lane1i)[i + 1], cv::Scalar(255, 0, 0), 3);
+		for (int i = 0; i < lane2i->size() - 1; i++)
+			cv::line(lanesImage, (*lane2i)[i], (*lane2i)[i + 1], cv::Scalar(0, 255, 0), 3);
+		DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelmäßigen Abständen");
+	}
+}
+
+// --------------------------------------------------------------------------
+// Sortiert die Punkte in die richtige Reinfolge mit Abstandsverfahren
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesIrregularSort(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort)
+{
+	// ersten Linienpunkt hinzufügen
+	laneSort->push_back(laneUnsort[0]);
+	laneUnsort.erase(laneUnsort.begin());
+	// Alle Punkte anfügen je nach Abstand
+	double bestDistance = 3E+38f;
+	while (laneUnsort.size() > 0)
+	{
+		cv::Point2f lastPoint = (*laneSort)[laneSort->size()-1];
+		float bestDistance = 3E+38f;
+		int id;
+		for (int i = 0; i < laneUnsort.size(); i++)
+		{
+			float distance = pow(laneUnsort[i].x - lastPoint.x, 2) + pow(laneUnsort[i].y - lastPoint.y, 2);
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				id = i;
+			}
+		}
+		// Besten Punkt abspeichern
+		laneSort->push_back(laneUnsort[id]);
+		laneUnsort.erase(laneUnsort.begin() + id);
+	}
 }
 
 // --------------------------------------------------------------------------
