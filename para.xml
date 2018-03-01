@@ -26,6 +26,13 @@
      <max_distance>300</max_distance>
      <max_angle>1.0</max_angle>
    </search_lines>
+	 <lanes_detection>
+	   <side_to_lane>0.28</side_to_lane>
+		 <side_to_lane_cross>0.4</side_to_lane_cross>
+		 <junction_detection_box_size>15</junction_detection_box_size>
+		 <junction_detection_blur_size>3</junction_detection_blur_size>
+		 <junction_detection_count_limit>5</junction_detection_count_limit>
+	 </lanes_detection>
  </track_detection>
  
 </opencv_storage>

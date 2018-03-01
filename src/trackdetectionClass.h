@@ -30,7 +30,10 @@ private:
 	bool calLanesSideDirection(std::vector<cv::Point2f> *line1, std::vector<cv::Point2f> *line2, linesDir *line1dir, linesDir *line2dir);
 	void calLanesCrossLines(std::vector<cv::Point2f> baseLines, std::vector<cv::Point2f> targetLines, linesDir baseDir, std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines, bool invertLines);
 	void calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines);
-	void calLanesIrregularSort(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort);
+	void calLanesIrregularSortCrosslines(std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines);
+	void calLanesIrregularSortLanes(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort);
+	bool calLanesIrregularJunctionDetection(cv::Point2f pos);
+	void calLanesIrregularStartDirection(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i);
 
 	void showHistogram(cv::Mat image, std::string title, int posX, int posY);
 	cv::Scalar hsvScalar(double h, double s, double v);

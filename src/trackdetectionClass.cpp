@@ -628,14 +628,23 @@ void TrackDetection::calLanesCrossLines(std::vector<cv::Point2f> baseLines, std:
 }
 
 // --------------------------------------------------------------------------
-// Berechnet zwei Linien mit Punkten unregelmäsigen Abstandes, die die
-// Fahrspuren darstellen
+// Berechnet je Crossline zwei Punkte für beide Fahrspuhren und bringt diese
+// dann in die richtige Reinfolge
 // --------------------------------------------------------------------------
 void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
 {
+	// Crosslines sortieren nach der Reihenfolge
+	calLanesIrregularSortCrosslines(crosslines);
+
+	// Parameter auslesen
+	cv::FileNode val = para["lanes_detection"];
 	// Prozentuale Aufteilung der Farbahn
-	float sideToLane1 = 0.28;
+	float sideToLane1 = (float)val["side_to_lane"];
+	float sideToLane1Cross = (float)val["side_to_lane_cross"];
 	float sideToLane2 = 1 - sideToLane1;
+	float sideToLane2Cross = 1 - sideToLane1Cross;
+	int invertCount = 0;
+	bool invert = false;
 	// Alle Querlinien durchgehen und Punkte zu den Spuren hinzufügen
 	std::vector<cv::Point2f> lane1u, lane2u;
 	for (int i = 0; i < crosslines.size(); i++)
@@ -650,14 +659,46 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 		lane2Point.x = crosslines[i].first.x + sideToLane2 * vec.x;
 		lane1Point.y = crosslines[i].first.y + sideToLane1 * vec.y;
 		lane2Point.y = crosslines[i].first.y + sideToLane2 * vec.y;
+		// Krezungsbereich?
+		if (calLanesIrregularJunctionDetection(lane1Point) && calLanesIrregularJunctionDetection(lane2Point))
+		{
+			lane1Point.x = crosslines[i].first.x + sideToLane1Cross * vec.x;
+			lane2Point.x = crosslines[i].first.x + sideToLane2Cross * vec.x;
+			lane1Point.y = crosslines[i].first.y + sideToLane1Cross * vec.y;
+			lane2Point.y = crosslines[i].first.y + sideToLane2Cross * vec.y;
+			// Bei Vollständiger Kreuzung die letzten Punkte neu sortieren
+			invertCount++;
+			if (invertCount == 4)
+			{
+				invert = !invert;
+				invertCount = 0;
+				cv::Point2f l1 = lane1u.back();
+				lane1u.pop_back();
+				cv::Point2f l2 = lane2u.back();
+				lane2u.pop_back();
+				lane1u.push_back(l2);
+				lane2u.push_back(l1);
+				std::cout << "Streckenweiche erkannt" << std::endl;
+			}
+		}
+		else
+			invertCount = 0;
+		// Wenn nötig Datenströme gekreuzt umkopieren
+		if (invert)
+		{
+			cv::Point2f temp = lane1Point;
+			lane1Point = lane2Point;
+			lane2Point = temp;
+		}
+		// Fügt Punkte zu den Lines hinzu
 		lane1u.push_back(lane1Point);
 		lane2u.push_back(lane2Point);
-		//cv::circle(outputImage, lane1Point, 2, cv::Scalar(0, 255, 0), 4);
-		//cv::circle(outputImage, lane2Point, 2, cv::Scalar(255, 0, 0), 4);
 	}
 	// Sortieren der Punkte nach ihrer Reinfolge
-	calLanesIrregularSort(lane1u, lane1i);
-	calLanesIrregularSort(lane2u, lane2i);
+	calLanesIrregularSortLanes(lane1u, lane1i);
+	calLanesIrregularSortLanes(lane2u, lane2i);
+	// Beide Linien in selbe Richtung starten lassen
+	calLanesIrregularStartDirection(lane1i, lane2i);
 	// Debugfenster anzeigen
 	if (debugWin)
 	{
@@ -672,9 +713,40 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 }
 
 // --------------------------------------------------------------------------
+// Sortiert dalle Crosslines
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
+{
+	std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslinesUnsort = crosslines;
+	crosslines.clear();
+	crosslines.push_back(crosslinesUnsort[0]);
+	crosslinesUnsort.erase(crosslinesUnsort.begin());
+	while (crosslinesUnsort.size() > 0)
+	{
+
+		std::pair<cv::Point2f, cv::Point2f> lastPoints = crosslines[crosslines.size() - 1];
+		cv::Point2f lastPoint(lastPoints.first.x + lastPoints.second.x * 0.5, lastPoints.first.y + lastPoints.second.y * 0.5);
+		float bestDistance = 3E+38f;
+		int id;
+		for (int i = 0; i < crosslinesUnsort.size(); i++)
+		{
+			cv::Point2f midPoint(crosslinesUnsort[i].first.x + crosslinesUnsort[i].second.x * 0.5, crosslinesUnsort[i].first.y + crosslinesUnsort[i].second.y * 0.5);
+			float distance = pow(midPoint.x - lastPoint.x, 2) + pow(midPoint.y - lastPoint.y, 2);
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				id = i;
+			}
+		}
+		crosslines.push_back(crosslinesUnsort[id]);
+		crosslinesUnsort.erase(crosslinesUnsort.begin() + id);
+	}
+}
+
+// --------------------------------------------------------------------------
 // Sortiert die Punkte in die richtige Reinfolge mit Abstandsverfahren
 // --------------------------------------------------------------------------
-void TrackDetection::calLanesIrregularSort(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort)
+void TrackDetection::calLanesIrregularSortLanes(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort)
 {
 	// ersten Linienpunkt hinzufügen
 	laneSort->push_back(laneUnsort[0]);
@@ -699,6 +771,56 @@ void TrackDetection::calLanesIrregularSort(std::vector<cv::Point2f> laneUnsort, 
 		laneSort->push_back(laneUnsort[id]);
 		laneUnsort.erase(laneUnsort.begin() + id);
 	}
+}
+
+// --------------------------------------------------------------------------
+// Prüft ob eine Kreuzung vorhanden ist
+// --------------------------------------------------------------------------
+bool TrackDetection::calLanesIrregularJunctionDetection(cv::Point2f pos)
+{
+	// Parameter einlesen
+	cv::FileNode val = para["lanes_detection"];
+	int boxSize = (int)val["junction_detection_box_size"];
+
+	// Auswerterbereich definieren
+	cv::Rect R(pos.x - (int)(boxSize / 2), pos.y - (int)(boxSize / 2), boxSize, boxSize);
+	// Ausschneiden
+	cv::Mat ROI = inputImage(R);
+	cv::cvtColor(ROI, ROI, CV_RGB2GRAY);
+	// leichtes weichzeichnen
+	cv::medianBlur(ROI, ROI, (int)val["junction_detection_blur_size"]);
+	// Histogramm erstellen
+	cv::Mat hist;
+	int numbins = 100;
+	float range[] = { 0, 256 };
+	const float* histRange = { range };
+	cv::calcHist(&ROI, 1, 0, cv::Mat(), hist, 1, &numbins, &histRange);	
+	// Zählen wie verschieden die Werte im Histogramm sind
+	int count = 0;
+	for (int i = 1; i < numbins; i++)
+		if (hist.at<float>(i - 1) != 0) count++;
+	// Erkennung einer Weiche
+	if (count <= (int)val["junction_detection_count_limit"])
+		return true;
+	// cv::circle(outputImage, pos, 2, cv::Scalar(255, 0, 0), 4);
+	
+	return false;
+}
+
+// --------------------------------------------------------------------------
+// Prüft ob beide Linien in die selbe Richtung starten und passt dies
+// gegebendenfalls an
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesIrregularStartDirection(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i)
+{
+	float vecX1 = (*lane1i)[1].x - (*lane1i)[0].x;
+	float vecX2 = (*lane2i)[1].x - (*lane2i)[0].x;
+	float vecY1 = (*lane1i)[1].y - (*lane1i)[0].y;
+	float vecY2 = (*lane2i)[1].y - (*lane2i)[0].y;
+	float vecadd = pow(vecX1 + vecX2, 2) + pow(vecY1 + vecY2, 2);
+	float vecsub = pow(vecX1 - vecX2, 2) + pow(vecY1 - vecY2, 2);
+	if (vecadd < vecsub)
+		std::reverse(lane2i->begin(), lane2i->end());
 }
 
 // --------------------------------------------------------------------------
