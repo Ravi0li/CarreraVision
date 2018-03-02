@@ -89,7 +89,6 @@ cv::Mat TrackDetection::getMaskPicture()
 	return maskImage;
 }
 
-
 // --------------------------------------------------------------------------
 // Filtert die Daten anhand der HSV Daten
 // --------------------------------------------------------------------------
@@ -101,18 +100,50 @@ void TrackDetection::calHSVRange(cv::Mat *image)
 	// Konvertieren in HSV
 	// H: 0 - 180, S: 0 - 255, V: 0 - 255
 	cv::cvtColor(*image, *image, CV_RGB2HSV);
+	imwrite("graubild.bmp", *image);
 
 	// Anzeigen eines Histogram
 	if (debugWin)
 		showHistogram(*image, "Historgramm HSV", 0, 0);
 
-	// Range Operationen
-	cv::inRange(*image, cv::Scalar((int)val["min_h"], (int)val["min_s"], (int)val["min_v"]), cv::Scalar((int)val["max_h"], (int)val["max_s"], (int)val["max_v"]), *image);
+	// Range Funktion mit Erweiterung
+	//cv::inRange(*image, cv::Scalar(100, 100, 40), cv::Scalar(140, 256, 230), *image);
+	//cv::inRange(*image, cv::Scalar((int)val["min_h"], (int)val["min_s"], (int)val["min_v"]), cv::Scalar((int)val["max_h"], (int)val["max_s"], (int)val["max_v"]), *image);
+	struct Operator
+	{
+		void operator ()(cv::Vec3b &pixel, const int * position) const
+		{
+			int minS = 180 - 0.7 * pixel[2];
+			if (pixel[0] > 115 && pixel[0] < 145 && pixel[1] > minS)
+				pixel[2] = pixel[1] = pixel[0] = 255;
+			else
+				pixel[2] = pixel[1] = pixel[0] = 0;
+		}
+	};
+	image->forEach<cv::Vec3b>(Operator());
 
 	// Anzeigen des Ergebnisses
 	if (debugWin)
 		DebugWinOrganizer::addWindow(*image, "nach HSV-Range-Filter");
 }
+
+// --------------------------------------------------------------------------
+// Code um per klick HSV-Werte auszulesen
+// --------------------------------------------------------------------------
+/*cv::Mat *tImg;
+tImg = new cv::Mat(*image);
+cv::namedWindow("HSV", CV_GUI_NORMAL);
+cv::resizeWindow("HSV", 700, 500);
+cv::imshow("HSV", *tImg);
+setMouseCallback("HSV", onMouse, tImg);
+static void onMouse(int event, int x, int y, int, void* userInput)
+{
+	if (event != cv::EVENT_LBUTTONDOWN)
+		return;
+	cv::Mat* img = (cv::Mat*)userInput;
+	cv::Scalar color = img->at<cv::Vec3b>(cv::Point(x, y));
+	std::cout << "H: " << color.val[0] << "     S: " << color.val[1] << "     V: " << color.val[2] << std::endl;
+}*/
 
 // --------------------------------------------------------------------------
 // Ausführen von Morphologischen Operationen
@@ -182,6 +213,9 @@ std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
 // --------------------------------------------------------------------------
 void TrackDetection::calBlobDetectionMeldedPoints(std::vector<cv::KeyPoint> *keypoints)
 {
+	if (keypoints->size() <= 2)
+		return;
+
 	// Parameter auslesen
 	cv::FileNode val = para["blob_detection"];
 
@@ -901,7 +935,6 @@ bool TrackDetection::calLanesIrregularJunctionDetection(cv::Point2f pos)
 	// Erkennung einer Weiche
 	if (count <= (int)val["junction_detection_count_limit"])
 		return true;
-	// cv::circle(outputImage, pos, 2, cv::Scalar(255, 0, 0), 4);
 	
 	return false;
 }
