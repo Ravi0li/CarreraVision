@@ -3,12 +3,13 @@
 #include "debugWinOrganizerClass.h"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d.hpp>
-#include <vector>
-#include <iostream>
-#include <cmath>
-#include <random>
-#include <time.h>
-#include <string>
+#include <vector>			// stc::vector
+#include <iostream>			// std::cout
+#include <cmath>			// atan2()
+#include <random>			// rand()
+#include <time.h>			// time()
+#include <string>			// toString()
+#include <algorithm>		// std::min_element() std::max_element()
 
 // --------------------------------------------------------------------------
 // Initialisieren
@@ -157,11 +158,13 @@ std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
 	// BlobDetection durchführen
 	std::vector<cv::KeyPoint> keypoints;
 	cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
-	//cv::SimpleBlobDetector detector(params);
 	detector->detect(*image, keypoints);
 
 	// Textausgabe
 	std::cout << "Trackdetection: Es wurden " << keypoints.size() << " Keypoints gefunden" << std::endl;
+
+	// Prüfen nach Verschmolzenen Punkten (doppelt große Blobs)
+	calBlobDetectionMeldedPoints(&keypoints);
 
 	// Anzeigen des Ergebnisses
 	if (debugWin)
@@ -172,6 +175,43 @@ std::vector<cv::KeyPoint> TrackDetection::calBlobDetection(cv::Mat *image)
 	}
 
 	return keypoints;
+}
+
+// --------------------------------------------------------------------------
+// Prüfen nach Verschmolzenen Punkten (doppelt große Blobs)
+// --------------------------------------------------------------------------
+void TrackDetection::calBlobDetectionMeldedPoints(std::vector<cv::KeyPoint> *keypoints)
+{
+	// Parameter auslesen
+	cv::FileNode val = para["blob_detection"];
+
+	// Größten Punkt suchen
+	cv::KeyPoint maxSizePoint = *std::max_element(keypoints->begin(), keypoints->end(), [](cv::KeyPoint a, cv::KeyPoint b) { return a.size < b.size; });
+	int max = (int)(maxSizePoint.size) + 1;
+	// Histogramm aller Punktgrößen erstellen
+	std::vector<int> hist;
+	for (int i = 0; i < max; i++)
+		hist.push_back(0);
+	for (cv::KeyPoint p : *keypoints)
+		hist[(int)(p.size)]++;
+	// Häufigsten Wert finden
+	int maxPos = distance(hist.begin(), std::max_element(hist.begin(), hist.end()));
+	// Suchen nach Doppelt großen Punkten
+	float rangePosMin = maxPos * (float)val["double_points_min_faktor"];
+	float rangePosMax = maxPos * (float)val["double_points_max_faktor"];
+	std::cout << "Es wird nach verschmolzenen Puntken gesucht" << std::endl;
+	std::cout << "   Min: " << rangePosMin << "     Max : " << rangePosMax << std::endl;
+	for (cv::KeyPoint p : *keypoints)
+	{
+		if (p.size > rangePosMin && p.size < rangePosMax)
+		{
+			std::cout << "Verschmolzener Punkt entdeckt (size:" << p.size << ")" << std::endl;
+			// Wenn ein Doppelt großer Punkt gefunden wurde einfach noch einmal zur Liste hinzufügen
+			cv::KeyPoint newPoint(p);
+			newPoint.size = 0;
+			keypoints->push_back(newPoint);
+		}
+	}
 }
 
 // --------------------------------------------------------------------------
@@ -212,6 +252,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 				for (std::vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it)
 				{
 					// Abstands und Winkelberechnungen
+					bool samePoint = (it->pt.x == line.at(line.size() - 1).x) && (it->pt.y == line.at(line.size() - 1).y);
 					float xDiff = it->pt.x - line.at(line.size() - 1).x;
 					float yDiff = it->pt.y - line.at(line.size() - 1).y;
 					float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
@@ -220,7 +261,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 					if (difAngle > M_PI) difAngle = 2 * (float)M_PI - difAngle;
 					// Prüfen ob Punkt im zugelassenen Winkel und Abstand hat
 					float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
-					if (lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle))
+					if (!samePoint && lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle))
 					{
 						// Prüfen ob er den neuen Bestwert hat
 						if ((distance) < bestDistance)
@@ -403,6 +444,9 @@ bool TrackDetection::calLanes(std::vector<std::vector<cv::Point2f>> lines)
 	std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines;
 	calLanesCrossLines(line1, line2, line1dir, &crosslines, false);
 	calLanesCrossLines(line2, line1, line2dir, &crosslines, true);
+
+	// Aussortieren von zu kleinen und großen Crosslines
+	calLanesCrossLinesFilter(&crosslines);
 
 	// Spurenlinien berechnen (unregelmäsige Abstände)
 	std::vector<cv::Point2f> lane1i, lane2i;
@@ -628,14 +672,65 @@ void TrackDetection::calLanesCrossLines(std::vector<cv::Point2f> baseLines, std:
 }
 
 // --------------------------------------------------------------------------
+// analysiert die Querlinien und wirft zu kurze oder lange weg
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines)
+{
+	// Parameter auslesen
+	cv::FileNode val = para["lanes_detection"];
+
+	// kleine Hilfsfunktion um Distance zu berechnen
+	struct {
+		int operator()(std::pair<cv::Point2f, cv::Point2f> a)
+		{
+			return (int)(pow(a.second.x - a.first.x, 2) + pow(a.second.y - a.first.y, 2)) / pow(5, 2);
+		}
+	} getDis;
+
+	// Nach der längsten Crossline suchen
+	std::pair<cv::Point2f, cv::Point2f> maxSizePoint = *std::max_element(crosslines->begin(), crosslines->end(),
+		                                                       [](std::pair<cv::Point2f, cv::Point2f> a, std::pair<cv::Point2f, cv::Point2f> b)
+	                                                               { return pow(a.second.x-a.first.x,2)+pow(a.second.y - a.first.y, 2) < pow(b.second.x - b.first.x, 2) + pow(b.second.y - b.first.y, 2); });
+	int max = getDis(maxSizePoint) + 1;
+	// Histogramm aller Linienlängen erstellen
+	std::vector<int> hist;
+	for (int i = 0; i < max; i++)
+		hist.push_back(0);
+	for (std::pair<cv::Point2f, cv::Point2f> p : *crosslines)
+		hist[getDis(p)]++;
+	// Häufigsten Wert finden
+	int maxPos = distance(hist.begin(), std::max_element(hist.begin(), hist.end()));
+	// Suchen nach zur kurzen oder langen Linien
+	float rangePosMin = maxPos * pow((float)val["cross_lane_filter_min_faktor"],2);
+	float rangePosMax = maxPos * pow((float)val["cross_lane_filter_max_faktor"],2);
+	std::cout << "Es wird nach zu kurzen oder langen Linien gesucht" << std::endl;
+	std::cout << "   Min: " << rangePosMin << "     Max : " << rangePosMax << std::endl;
+	auto p = std::begin(*crosslines);
+	while (p != std::end(*crosslines))
+	{
+		if (getDis(*p) < rangePosMin || getDis(*p) > rangePosMax)
+		{
+			std::cout << "Eine zu kurze oder lange Crossline wurde entfernt (laenge:" << getDis(*p) << ")" << std::endl;
+			// Linie aus dem Vorrat entfernen
+			p = crosslines->erase(p);
+		}
+		else
+			++p;
+	}
+}
+
+// --------------------------------------------------------------------------
 // Berechnet je Crossline zwei Punkte für beide Fahrspuhren und bringt diese
 // dann in die richtige Reinfolge
 // --------------------------------------------------------------------------
 void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
 {
+	cv::Mat lanesImage;
+	if (debugWin)
+		outputImage.copyTo(lanesImage);
+	
 	// Crosslines sortieren nach der Reihenfolge
-	calLanesIrregularSortCrosslines(crosslines);
-
+	calLanesIrregularSortCrosslines(&crosslines);
 	// Parameter auslesen
 	cv::FileNode val = para["lanes_detection"];
 	// Prozentuale Aufteilung der Farbahn
@@ -666,6 +761,12 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			lane2Point.x = crosslines[i].first.x + sideToLane2Cross * vec.x;
 			lane1Point.y = crosslines[i].first.y + sideToLane1Cross * vec.y;
 			lane2Point.y = crosslines[i].first.y + sideToLane2Cross * vec.y;
+			// Dabuginformationen anzeigen
+			if (debugWin)
+			{
+				cv::circle(lanesImage, lane1Point, 3, cv::Scalar(0, 0, 255), 6);
+				cv::circle(lanesImage, lane2Point, 3, cv::Scalar(0, 0, 255), 6);
+			}
 			// Bei Vollständiger Kreuzung die letzten Punkte neu sortieren
 			invertCount++;
 			if (invertCount == 4)
@@ -702,12 +803,10 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 	// Debugfenster anzeigen
 	if (debugWin)
 	{
-		cv::Mat lanesImage;
-		outputImage.copyTo(lanesImage);
 		for (int i = 0; i < lane1i->size() - 1; i++)
-			cv::line(lanesImage, (*lane1i)[i], (*lane1i)[i + 1], cv::Scalar(255, 0, 0), 3);
+			cv::line(lanesImage, (*lane1i)[i], (*lane1i)[i + 1], cv::Scalar(255, 0, 0), 2);
 		for (int i = 0; i < lane2i->size() - 1; i++)
-			cv::line(lanesImage, (*lane2i)[i], (*lane2i)[i + 1], cv::Scalar(0, 255, 0), 3);
+			cv::line(lanesImage, (*lane2i)[i], (*lane2i)[i + 1], cv::Scalar(0, 255, 0), 2);
 		DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelmäßigen Abständen");
 	}
 }
@@ -715,16 +814,16 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 // --------------------------------------------------------------------------
 // Sortiert dalle Crosslines
 // --------------------------------------------------------------------------
-void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
+void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines)
 {
-	std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslinesUnsort = crosslines;
-	crosslines.clear();
-	crosslines.push_back(crosslinesUnsort[0]);
+	std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslinesUnsort = *crosslines;
+	crosslines->clear();
+	crosslines->push_back(crosslinesUnsort[0]);
 	crosslinesUnsort.erase(crosslinesUnsort.begin());
 	while (crosslinesUnsort.size() > 0)
 	{
 
-		std::pair<cv::Point2f, cv::Point2f> lastPoints = crosslines[crosslines.size() - 1];
+		std::pair<cv::Point2f, cv::Point2f> lastPoints = (*crosslines)[crosslines->size() - 1];
 		cv::Point2f lastPoint(lastPoints.first.x + lastPoints.second.x * 0.5, lastPoints.first.y + lastPoints.second.y * 0.5);
 		float bestDistance = 3E+38f;
 		int id;
@@ -738,7 +837,7 @@ void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::P
 				id = i;
 			}
 		}
-		crosslines.push_back(crosslinesUnsort[id]);
+		crosslines->push_back(crosslinesUnsort[id]);
 		crosslinesUnsort.erase(crosslinesUnsort.begin() + id);
 	}
 }
