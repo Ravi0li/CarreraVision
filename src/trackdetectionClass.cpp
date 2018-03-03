@@ -113,7 +113,7 @@ void TrackDetection::calHSVRange(cv::Mat *image)
 	{
 		void operator ()(cv::Vec3b &pixel, const int * position) const
 		{
-			int minS = 180 - 0.7 * pixel[2];
+			int minS = (int)(180 - 0.7 * pixel[2]);
 			if (pixel[0] > 115 && pixel[0] < 145 && pixel[1] > minS)
 				pixel[2] = pixel[1] = pixel[0] = 255;
 			else
@@ -229,20 +229,22 @@ void TrackDetection::calBlobDetectionMeldedPoints(std::vector<cv::KeyPoint> *key
 	for (cv::KeyPoint p : *keypoints)
 		hist[(int)(p.size)]++;
 	// Häufigsten Wert finden
-	int maxPos = distance(hist.begin(), std::max_element(hist.begin(), hist.end()));
+	int maxPos = (int)distance(hist.begin(), std::max_element(hist.begin(), hist.end()));
 	// Suchen nach Doppelt großen Punkten
 	float rangePosMin = maxPos * (float)val["double_points_min_faktor"];
 	float rangePosMax = maxPos * (float)val["double_points_max_faktor"];
 	std::cout << "Es wird nach verschmolzenen Puntken gesucht" << std::endl;
 	std::cout << "   Min: " << rangePosMin << "     Max : " << rangePosMax << std::endl;
-	for (cv::KeyPoint p : *keypoints)
+	for (cv::KeyPoint& p : *keypoints)
 	{
 		if (p.size > rangePosMin && p.size < rangePosMax)
 		{
 			std::cout << "Verschmolzener Punkt entdeckt (size:" << p.size << ")" << std::endl;
 			// Wenn ein Doppelt großer Punkt gefunden wurde einfach noch einmal zur Liste hinzufügen
+			p.response = 1;
 			cv::KeyPoint newPoint(p);
 			newPoint.size = 0;
+			newPoint.response = 1;
 			keypoints->push_back(newPoint);
 		}
 	}
@@ -272,6 +274,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 		line.push_back(keypoints.at(numKey).pt);
 		keypoints.erase(keypoints.begin() + numKey);
 		float lastAngle = -99;
+		cv::KeyPoint lastPoint;
 		bool again = false;
 		// In der anderen Richtung die Suche wiederholen
 		do
@@ -281,7 +284,8 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 			while (keypoints.size())
 			{
 				std::vector<cv::KeyPoint>::iterator nextKeypoint;
-				float bestDistance = maxDistancePow;
+				float bestDistance2 = maxDistancePow;
+				float bestDistance;
 				float bestAngle;
 				for (std::vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it)
 				{
@@ -301,26 +305,51 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 					if (!samePoint && (lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle)))
 					{
 						// Prüfen ob er den neuen Bestwert hat
-						if (distance2 < bestDistance)
+						if (distance2 < bestDistance2)
 						{
 							// Neuer nächster Nachbar gefunden
-							bestDistance = distance2;
+							bestDistance2 = distance2;
+							bestDistance = distance;
 							bestAngle = angle;
 							nextKeypoint = it;
 						}
 					}
 				}
+				// Nach Brücken (Überfahrten) suchen. Schauen ob nach hinten geschaut auch ein Punkt exisitert bei letzter Gerade
+				if (lastAngle != -99 && bestDistance2 != maxDistancePow && lastPoint.response != 1)
+				{
+					for (cv::KeyPoint p : keypoints)
+					{
+						// Bei Doppelten Punkten keine Rückwärtssuche machen bzgl. Brücken
+						if (p.response != 1)
+						{
+							float xDiff2 = line.at(line.size() - 1).x - p.pt.x;
+							float yDiff2 = line.at(line.size() - 1).y - p.pt.y;
+							float angle2 = atan2(yDiff2, xDiff2) + (float)M_PI;
+							float difAngle2 = abs(angle2 - bestAngle);
+							float distance2 = std::pow(xDiff2, 2) + std::pow(yDiff2, 2);
+							while (difAngle2 > M_PI) difAngle2 = (float)(2 * M_PI - difAngle2);
+							if (difAngle2 < 0.1 && distance2 < bestDistance * 1.75)
+							{
+								bestDistance2 = maxDistancePow;
+								std::cout << "Brueckeneinfahrt wurde erkannt" << std::endl;
+							}
+						}
+					}
+				}
 				// Kein nächster Nachbar gefunden dann Linie beenden
-				if (bestDistance == maxDistancePow)
+				if (bestDistance2 == maxDistancePow)
 					break;
 				// nächsten Punkt auf der Linie abspeichern
 				line.push_back(nextKeypoint->pt);
+				lastPoint = *nextKeypoint;
 				keypoints.erase(nextKeypoint);
 				lastAngle = bestAngle;
 			}
 			// Reinfolge der Punkte rückwärts setzen und dort weiter nach Punkten suchen
 			std::reverse(line.begin(), line.end());
 			lastAngle = -99;
+			lastPoint = cv::KeyPoint();
 			if (line.size() >= 2)
 			{
 				float xDiff = line.at(line.size() - 1).x - line.at(line.size() - 2).x;
@@ -379,7 +408,7 @@ bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 	cv::FileNode val = para["search_lines"];
 
 	// Parameter
-	float maxDistance = (float)val["max_distance"];		// Maximaler Abstand der zwei Punkte zueinander haben darf
+	float maxDistance = (float)val["max_distance"]+200;		// Maximaler Abstand der zwei Punkte zueinander haben darf
 	float maxAngle = (float)val["max_angle"];			// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
 	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
 	float k = -maxDistancePow / std::pow(maxAngle, 2);	// Stauchungsfaktor der Parabel
@@ -401,7 +430,7 @@ bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 			yDiff = line->at(line->size() - 1).y - line->at(line->size() - 2).y;
 			float angle2 = atan2(yDiff, xDiff) + (float)M_PI;
 			float difAngle = abs(angle1 - angle2);
-			if (difAngle > (float)M_PI) difAngle = 2 * (float)M_PI - difAngle;
+			while (difAngle > (float)M_PI) difAngle = 2 * (float)M_PI - difAngle;
 			float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
 			// Prüfen ob auch Verbindugslinie passt
 			if (distance < maxDistanceFromFunction && difAngle < maxAngle)
@@ -670,8 +699,10 @@ void TrackDetection::calLanesCrossLines(std::vector<cv::Point2f> baseLines, std:
 			// Prüfen ob der Schnittpunkt auch auf der Strecke zwischen den Punkten liegt
 			double vecFac2 = (stp.x - l2p1.x) / (l2p2.x - l2p1.x);
 			double vecFac1 = (stp.x - point.x) / (vector.x);
+			// Winkel auf zweite Linie berechnen, dieser sollte fast senkrecht sein
+			double diffAngle = angleDiffFromVec(stp, point, stp, l2p1);
 			// Wenn alles erfüllt, dann als neusten nächsten Schnittpunkt merken
-			if (bestDistance > distance && vecFac2 >= 0 && vecFac2 <= 1 && vecFac1 > 0)
+			if (bestDistance > distance && vecFac2 >= 0 && vecFac2 <= 1 && vecFac1 > 0 && diffAngle > 1.38 && diffAngle < 1.78)
 			{
 				bestDistance = distance;
 				bestPoint = stp;
@@ -720,7 +751,7 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 	struct {
 		int operator()(std::pair<cv::Point2f, cv::Point2f> a)
 		{
-			return (int)(pow(a.second.x - a.first.x, 2) + pow(a.second.y - a.first.y, 2)) / pow(5, 2);
+			return (int)((int)(pow(a.second.x - a.first.x, 2) + pow(a.second.y - a.first.y, 2)) / pow(5, 2));
 		}
 	} getDis;
 
@@ -736,11 +767,11 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 	for (std::pair<cv::Point2f, cv::Point2f> p : *crosslines)
 		hist[getDis(p)]++;
 	// Häufigsten Wert finden
-	int maxPos = distance(hist.begin(), std::max_element(hist.begin(), hist.end()));
+	int maxPos = (int)distance(hist.begin(), std::max_element(hist.begin(), hist.end()));
 	// Suchen nach zur kurzen oder langen Linien
 	float rangePosMin = maxPos * pow((float)val["cross_lane_filter_min_faktor"],2);
 	float rangePosMax = maxPos * pow((float)val["cross_lane_filter_max_faktor"],2);
-	std::cout << "Es wird nach zu kurzen oder langen Linien gesucht" << std::endl;
+	std::cout << "Es wird nach zu kurzen oder langen Crosslines gesucht" << std::endl;
 	std::cout << "   Min: " << rangePosMin << "     Max : " << rangePosMax << std::endl;
 	auto p = std::begin(*crosslines);
 	while (p != std::end(*crosslines))
@@ -753,6 +784,20 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 		}
 		else
 			++p;
+	}
+
+	// Infofenster zum Debuggen
+	if (debugWin)
+	{
+		cv::Mat crossLinesFilterImage;
+		outputImage.copyTo(crossLinesFilterImage);
+		for (std::pair<cv::Point2f, cv::Point2f> points : *crosslines)
+		{
+			cv::line(crossLinesFilterImage, points.first, points.second, cv::Scalar(0, 0, 255), 2);
+			cv::circle(crossLinesFilterImage, points.first, 2, cv::Scalar(0, 255, 0), 4);
+			cv::circle(crossLinesFilterImage, points.second, 2, cv::Scalar(255, 0, 170), 4);
+		}
+		DebugWinOrganizer::addWindow(crossLinesFilterImage, "alle auswertbaren Crosslines nach Filterung");
 	}
 }
 
@@ -778,7 +823,6 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 	int invertCount = 0;
 	bool invert = false;
 	// Alle Querlinien durchgehen und Punkte zu den Spuren hinzufügen
-	std::vector<cv::Point2f> lane1u, lane2u;
 	for (int i = 0; i < crosslines.size(); i++)
 	{
 		// Vektor zwischen den zwei punkten berechnen
@@ -810,12 +854,12 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			{
 				invert = !invert;
 				invertCount = 0;
-				cv::Point2f l1 = lane1u.back();
-				lane1u.pop_back();
-				cv::Point2f l2 = lane2u.back();
-				lane2u.pop_back();
-				lane1u.push_back(l2);
-				lane2u.push_back(l1);
+				cv::Point2f l1 = lane1i->back();
+				lane1i->pop_back();
+				cv::Point2f l2 = lane2i->back();
+				lane2i->pop_back();
+				lane1i->push_back(l2);
+				lane2i->push_back(l1);
 				std::cout << "Streckenweiche erkannt" << std::endl;
 			}
 		}
@@ -829,17 +873,16 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			lane2Point = temp;
 		}
 		// Fügt Punkte zu den Lines hinzu
-		lane1u.push_back(lane1Point);
-		lane2u.push_back(lane2Point);
+		lane1i->push_back(lane1Point);
+		lane2i->push_back(lane2Point);
 	}
-	// Sortieren der Punkte nach ihrer Reinfolge
-	calLanesIrregularSortLanes(lane1u, lane1i);
-	calLanesIrregularSortLanes(lane2u, lane2i);
 	// Beide Linien in selbe Richtung starten lassen
 	calLanesIrregularStartDirection(lane1i, lane2i);
 	// Debugfenster anzeigen
 	if (debugWin)
 	{
+		cv::circle(lanesImage, (*lane1i)[0], 3, cv::Scalar(255, 255, 255), 2);
+		cv::circle(lanesImage, (*lane2i)[0], 3, cv::Scalar(255, 255, 255), 2);
 		for (int i = 0; i < lane1i->size() - 1; i++)
 			cv::line(lanesImage, (*lane1i)[i], (*lane1i)[i + 1], cv::Scalar(255, 0, 0), 2);
 		for (int i = 0; i < lane2i->size() - 1; i++)
@@ -849,30 +892,39 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 }
 
 // --------------------------------------------------------------------------
-// Sortiert dalle Crosslines
+// Sortiert alle Crosslines nach der Streckenreinfolge
 // --------------------------------------------------------------------------
 void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines)
 {
+	// Umkopieren der unsortierten Crosslines
 	std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslinesUnsort = *crosslines;
 	crosslines->clear();
 	crosslines->push_back(crosslinesUnsort[0]);
 	crosslinesUnsort.erase(crosslinesUnsort.begin());
+	// Mit zufälligen beginnen und durcharbeiten
 	while (crosslinesUnsort.size() > 0)
 	{
-
 		std::pair<cv::Point2f, cv::Point2f> lastPoints = (*crosslines)[crosslines->size() - 1];
-		cv::Point2f lastPoint(lastPoints.first.x + lastPoints.second.x * 0.5, lastPoints.first.y + lastPoints.second.y * 0.5);
+		cv::Point2f lastPoint((lastPoints.first.x + lastPoints.second.x) * 0.5f, (lastPoints.first.y + lastPoints.second.y) * 0.5f);
+		double lastAngle = angleFromVec(lastPoints.first, lastPoints.second);
 		float bestDistance = 3E+38f;
-		int id;
+		int id = -1;
+		// Alle Crosslines durchgehen und schauen welche den geringsten Abstand zur letzten hat
 		for (int i = 0; i < crosslinesUnsort.size(); i++)
 		{
-			cv::Point2f midPoint(crosslinesUnsort[i].first.x + crosslinesUnsort[i].second.x * 0.5, crosslinesUnsort[i].first.y + crosslinesUnsort[i].second.y * 0.5);
+			cv::Point2f midPoint((crosslinesUnsort[i].first.x + crosslinesUnsort[i].second.x) * 0.5f, (crosslinesUnsort[i].first.y + crosslinesUnsort[i].second.y) * 0.5f);
 			float distance = pow(midPoint.x - lastPoint.x, 2) + pow(midPoint.y - lastPoint.y, 2);
-			if (distance < bestDistance)
+			double angleDiff = angleDiffFromVec(crosslinesUnsort[i].first, crosslinesUnsort[i].second, lastAngle);
+			if (distance < bestDistance && angleDiff < 0.50)
 			{
 				bestDistance = distance;
 				id = i;
 			}
+		}
+		if (id == -1)
+		{
+			std::cout << "Fehler: Vorzeitiger Abbruch der Sortierung der Crosslines (verbleibend " << crosslinesUnsort.size() << ")" << std::endl;
+			break;
 		}
 		crosslines->push_back(crosslinesUnsort[id]);
 		crosslinesUnsort.erase(crosslinesUnsort.begin() + id);
@@ -881,6 +933,7 @@ void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::P
 
 // --------------------------------------------------------------------------
 // Sortiert die Punkte in die richtige Reinfolge mit Abstandsverfahren
+// Wird in aktueller Version nicht mehr verwendet
 // --------------------------------------------------------------------------
 void TrackDetection::calLanesIrregularSortLanes(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort)
 {
@@ -918,8 +971,12 @@ bool TrackDetection::calLanesIrregularJunctionDetection(cv::Point2f pos)
 	cv::FileNode val = para["lanes_detection"];
 	int boxSize = (int)val["junction_detection_box_size"];
 
+	// Prüfen ob der Punkt in der Auswertemaske ist, wenn nicht handelt es sich um eine Brücke, dann kann es keine Kreuzung sein
+	if (maskImage.at<uchar>(pos) == 0)
+		return false;
+
 	// Auswerterbereich definieren
-	cv::Rect R(pos.x - (int)(boxSize / 2), pos.y - (int)(boxSize / 2), boxSize, boxSize);
+	cv::Rect R((int)pos.x - (int)(boxSize / 2), (int)pos.y - (int)(boxSize / 2), boxSize, boxSize);
 	// Ausschneiden
 	cv::Mat ROI = inputImage(R);
 	cv::cvtColor(ROI, ROI, CV_RGB2GRAY);
@@ -1008,4 +1065,35 @@ cv::Scalar TrackDetection::hsvScalar(double h, double s, double v)
 	cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(h, s, v));
 	cv::cvtColor(hsv, rgb, CV_HSV2RGB);
 	return cv::Scalar((int)rgb.at<cv::Vec3b>(0, 0)[0], (int)rgb.at<cv::Vec3b>(0, 0)[1], (int)rgb.at<cv::Vec3b>(0, 0)[2]);
+}
+
+// --------------------------------------------------------------------------
+// Berechnet den Winkelunterschied zweier Vektoren
+// --------------------------------------------------------------------------
+double TrackDetection::angleDiffFromVec(cv::Point2d a1, cv::Point2d a2, cv::Point2d b1, cv::Point2d b2)
+{
+	double angle1 = atan2(a2.y - a1.y, a2.x - a1.x);
+	double angle2 = atan2(b2.y - b1.y, b2.x - b1.x);
+	double angleDiff = abs(angle1 - angle2);
+	while (angleDiff > M_PI) angleDiff = 2 * (float)M_PI - angleDiff;
+	return angleDiff;
+}
+
+// --------------------------------------------------------------------------
+// Berechnet den Winkelunterschied eines Vektors und eines Winkels
+// --------------------------------------------------------------------------
+double TrackDetection::angleDiffFromVec(cv::Point2d a1, cv::Point2d a2, double angle2)
+{
+	double angle1 = atan2(a2.y - a1.y, a2.x - a1.x);
+	double angleDiff = abs(angle1 - angle2);
+	while (angleDiff > M_PI) angleDiff = 2 * (float)M_PI - angleDiff;
+	return angleDiff;
+}
+
+// --------------------------------------------------------------------------
+// Berechnet den Winkeleines Vektors
+// --------------------------------------------------------------------------
+double TrackDetection::angleFromVec(cv::Point2d a1, cv::Point2d a2)
+{
+	return atan2(a2.y - a1.y, a2.x - a1.x);
 }

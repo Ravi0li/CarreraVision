@@ -41,5 +41,8 @@ private:
 	// Hilfsfunktionen für die Streckenverarbeitung
 	void showHistogram(cv::Mat image, std::string title, int posX, int posY);
 	cv::Scalar hsvScalar(double h, double s, double v);
-
+	double angleDiffFromVec(cv::Point2d a1, cv::Point2d a2, cv::Point2d b1, cv::Point2d b2);
+	double angleDiffFromVec(cv::Point2d a1, cv::Point2d a2, double angle2);
+	double angleFromVec(cv::Point2d a1, cv::Point2d a2);
+	
 };
