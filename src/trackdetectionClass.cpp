@@ -293,15 +293,18 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 					float angle = atan2(yDiff, xDiff) + (float)M_PI;
 					float difAngle = abs(lastAngle - angle);
 					if (difAngle > M_PI) difAngle = 2 * (float)M_PI - difAngle;
+					float w = 1 + abs(difAngle)*2;
+					if (w > 3) w = 3;
+					float distance2 = distance * pow(w,2);
 					// Prüfen ob Punkt im zugelassenen Winkel und Abstand hat
 					float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
-					if (!samePoint && lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle))
+					if (!samePoint && (lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle)))
 					{
 						// Prüfen ob er den neuen Bestwert hat
-						if ((distance) < bestDistance)
+						if (distance2 < bestDistance)
 						{
 							// Neuer nächster Nachbar gefunden
-							bestDistance = distance;
+							bestDistance = distance2;
 							bestAngle = angle;
 							nextKeypoint = it;
 						}
