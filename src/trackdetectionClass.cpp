@@ -18,6 +18,7 @@ TrackDetection::TrackDetection(cv::FileNode _para)
 {
 	para = _para;
 	debugWin = false;
+	unitTestPic = false;
 	srand((unsigned int)time(NULL));
 }
 
@@ -35,6 +36,14 @@ void TrackDetection::setPicture(cv::Mat _inputImage)
 void TrackDetection::setDebugWin(bool _debugWin)
 {
 	debugWin = _debugWin;
+}
+
+// --------------------------------------------------------------------------
+// Setzen ob alle Zusatzfenster angezeigt werden
+// --------------------------------------------------------------------------
+void TrackDetection::setUnitTestPic(bool _unitTestPic)
+{
+	unitTestPic = _unitTestPic;
 }
 
 // --------------------------------------------------------------------------
@@ -90,6 +99,17 @@ cv::Mat TrackDetection::getMaskPicture()
 }
 
 // --------------------------------------------------------------------------
+// gibt alle Zwischenbilder f¸r den Unit-test zur¸ck
+// --------------------------------------------------------------------------
+void TrackDetection::getUnitTestPic(cv::Mat *pic1, cv::Mat *pic2, cv::Mat *pic3, cv::Mat *pic4)
+{
+	*pic1 = unitTestPic1;
+	*pic2 = unitTestPic2;
+	*pic3 = unitTestPic3;
+	*pic4 = unitTestPic4;
+}
+
+// --------------------------------------------------------------------------
 // Filtert die Daten anhand der HSV Daten
 // --------------------------------------------------------------------------
 void TrackDetection::calHSVRange(cv::Mat *image)
@@ -100,7 +120,6 @@ void TrackDetection::calHSVRange(cv::Mat *image)
 	// Konvertieren in HSV
 	// H: 0 - 180, S: 0 - 255, V: 0 - 255
 	cv::cvtColor(*image, *image, CV_RGB2HSV);
-	imwrite("graubild.bmp", *image);
 
 	// Anzeigen eines Histogram
 	if (debugWin)
@@ -165,6 +184,8 @@ void TrackDetection::calMorphology(cv::Mat *image)
 	// Anzeigen des Ergebnisses
 	if (debugWin)
 		DebugWinOrganizer::addWindow(*image, "nach Morphologischen Filter");
+	if (unitTestPic)
+		image->copyTo(unitTestPic1);
 }
 
 // --------------------------------------------------------------------------
@@ -328,7 +349,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 							float angle2 = atan2(yDiff2, xDiff2) + (float)M_PI;
 							float difAngle2 = abs(angle2 - bestAngle);
 							float distance2 = std::pow(xDiff2, 2) + std::pow(yDiff2, 2);
-							while (difAngle2 > M_PI) difAngle2 = (float)(2 * M_PI - difAngle2);
+							if (difAngle2 > M_PI) difAngle2 = (float)(2 * M_PI - difAngle2);
 							if (difAngle2 < 0.1 && distance2 < bestDistance * 1.75)
 							{
 								bestDistance2 = maxDistancePow;
@@ -371,7 +392,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 	}
 
 	// Anzeigen des Ergebnisses
-	if (debugWin)
+	if (debugWin || unitTestPic)
 	{
 		cv::Mat lineImage(inputImage.rows, inputImage.cols, inputImage.type(), cv::Scalar(255, 255, 255));
 		int counter = 0;
@@ -393,7 +414,10 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 				lastPt = pt;
 			}
 		}
-		DebugWinOrganizer::addWindow(lineImage, "nach der Liniendetektion");
+		if (debugWin)
+			DebugWinOrganizer::addWindow(lineImage, "nach der Liniendetektion");
+		if (unitTestPic)
+			lineImage.copyTo(unitTestPic2);
 	}
 
 	return lines;
@@ -787,7 +811,7 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 	}
 
 	// Infofenster zum Debuggen
-	if (debugWin)
+	if (debugWin || unitTestPic)
 	{
 		cv::Mat crossLinesFilterImage;
 		outputImage.copyTo(crossLinesFilterImage);
@@ -797,18 +821,20 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 			cv::circle(crossLinesFilterImage, points.first, 2, cv::Scalar(0, 255, 0), 4);
 			cv::circle(crossLinesFilterImage, points.second, 2, cv::Scalar(255, 0, 170), 4);
 		}
-		DebugWinOrganizer::addWindow(crossLinesFilterImage, "alle auswertbaren Crosslines nach Filterung");
+		if (debugWin)
+			DebugWinOrganizer::addWindow(crossLinesFilterImage, "alle auswertbaren Crosslines nach Filterung");
+		if (unitTestPic)
+			crossLinesFilterImage.copyTo(unitTestPic3);
 	}
 }
 
 // --------------------------------------------------------------------------
-// Berechnet je Crossline zwei Punkte f¸r beide Fahrspuhren und bringt diese
-// dann in die richtige Reinfolge
+// Berechnet je Crossline zwei Punkte f¸r beide Fahrspuhren und erstellt diese
 // --------------------------------------------------------------------------
 void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
 {
 	cv::Mat lanesImage;
-	if (debugWin)
+	if (debugWin || unitTestPic)
 		outputImage.copyTo(lanesImage);
 	
 	// Crosslines sortieren nach der Reihenfolge
@@ -843,7 +869,7 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			lane1Point.y = crosslines[i].first.y + sideToLane1Cross * vec.y;
 			lane2Point.y = crosslines[i].first.y + sideToLane2Cross * vec.y;
 			// Dabuginformationen anzeigen
-			if (debugWin)
+			if (debugWin || unitTestPic)
 			{
 				cv::circle(lanesImage, lane1Point, 3, cv::Scalar(0, 0, 255), 6);
 				cv::circle(lanesImage, lane2Point, 3, cv::Scalar(0, 0, 255), 6);
@@ -879,7 +905,7 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 	// Beide Linien in selbe Richtung starten lassen
 	calLanesIrregularStartDirection(lane1i, lane2i);
 	// Debugfenster anzeigen
-	if (debugWin)
+	if (debugWin || unitTestPic)
 	{
 		cv::circle(lanesImage, (*lane1i)[0], 3, cv::Scalar(255, 255, 255), 2);
 		cv::circle(lanesImage, (*lane2i)[0], 3, cv::Scalar(255, 255, 255), 2);
@@ -887,7 +913,10 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			cv::line(lanesImage, (*lane1i)[i], (*lane1i)[i + 1], cv::Scalar(255, 0, 0), 2);
 		for (int i = 0; i < lane2i->size() - 1; i++)
 			cv::line(lanesImage, (*lane2i)[i], (*lane2i)[i + 1], cv::Scalar(0, 255, 0), 2);
-		DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelm‰ﬂigen Abst‰nden");
+		if (debugWin)
+			DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelm‰ﬂigen Abst‰nden");
+		if (unitTestPic)
+			lanesImage.copyTo(unitTestPic4);
 	}
 }
 
@@ -915,7 +944,7 @@ void TrackDetection::calLanesIrregularSortCrosslines(std::vector<std::pair<cv::P
 			cv::Point2f midPoint((crosslinesUnsort[i].first.x + crosslinesUnsort[i].second.x) * 0.5f, (crosslinesUnsort[i].first.y + crosslinesUnsort[i].second.y) * 0.5f);
 			float distance = pow(midPoint.x - lastPoint.x, 2) + pow(midPoint.y - lastPoint.y, 2);
 			double angleDiff = angleDiffFromVec(crosslinesUnsort[i].first, crosslinesUnsort[i].second, lastAngle);
-			if (distance < bestDistance && angleDiff < 0.50)
+			if (distance < bestDistance && angleDiff < 0.60)
 			{
 				bestDistance = distance;
 				id = i;
@@ -1075,7 +1104,7 @@ double TrackDetection::angleDiffFromVec(cv::Point2d a1, cv::Point2d a2, cv::Poin
 	double angle1 = atan2(a2.y - a1.y, a2.x - a1.x);
 	double angle2 = atan2(b2.y - b1.y, b2.x - b1.x);
 	double angleDiff = abs(angle1 - angle2);
-	while (angleDiff > M_PI) angleDiff = 2 * (float)M_PI - angleDiff;
+	if (angleDiff > M_PI) angleDiff = 2 * (float)M_PI - angleDiff;
 	return angleDiff;
 }
 
@@ -1086,7 +1115,7 @@ double TrackDetection::angleDiffFromVec(cv::Point2d a1, cv::Point2d a2, double a
 {
 	double angle1 = atan2(a2.y - a1.y, a2.x - a1.x);
 	double angleDiff = abs(angle1 - angle2);
-	while (angleDiff > M_PI) angleDiff = 2 * (float)M_PI - angleDiff;
+	if (angleDiff > M_PI) angleDiff = 2 * (float)M_PI - angleDiff;
 	return angleDiff;
 }
 

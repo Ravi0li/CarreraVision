@@ -7,9 +7,11 @@ public:
 	TrackDetection(cv::FileNode _para);
 	void setPicture(cv::Mat _inputImage);
 	void setDebugWin(bool _debugWin);
+	void setUnitTestPic(bool _unitTestPic);
 	bool calculate();
 	cv::Mat getResultPicture();
 	cv::Mat getMaskPicture();
+	void getUnitTestPic(cv::Mat *pic1, cv::Mat *pic2, cv::Mat *pic3, cv::Mat *pic4);
 
 private:
 	enum linesDir { RIGHT, LEFT };
@@ -18,7 +20,13 @@ private:
 	cv::Mat maskImage;		// Maske zum ausbleden aller Teile die nicht zur Strecke gehören
 	cv::Mat outputImage;	// Bild mit allen Auswertungen
 	bool debugWin;			// Sollen alle Zusatzfenster angezeigt werden
+	bool unitTestPic;		// Sollen Zwischenbilder abgespeichert werden zum späteren auslesen
 	cv::FileNode para;	    // Parameter zur Auswertung
+
+	cv::Mat unitTestPic1;	// Zwischenbilder die nur beim Unittest verwendet werden
+	cv::Mat unitTestPic2;	//   ||
+	cv::Mat unitTestPic3;	//   ||
+	cv::Mat unitTestPic4;	// ------
 
 	// Interne Funktionen für die Streckenverarbeitung
 	void calHSVRange(cv::Mat *image);
