@@ -26,13 +26,18 @@ int main(int argc, const char** argv)
 			std::cout << "Cannot open Camera" << std::endl;
 			return -1;
 		}
+		cap.set(CV_CAP_PROP_FPS, 10);
+		cap.set(CV_CAP_PROP_FRAME_WIDTH,3280);
+		cap.set(CV_CAP_PROP_FRAME_HEIGHT,2464);
 		cap >> image;
-		std::cout << "Bildaufloesung    X: " << image.rows << "    Y: " << image.cols << std::endl;
+		std::cout << "Bildaufloesung    X: " << image.cols << "    Y: " << image.rows << std::endl;
 		if (image.empty())
 		{
 			std::cout << "Cannot grab a image from Camera" << std::endl;
 			return -1;
 		}
+		cv::namedWindow("Input", CV_GUI_NORMAL);
+		cv::imshow("Input", image);
 	}
 	else
 	{
