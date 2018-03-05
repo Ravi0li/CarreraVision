@@ -834,7 +834,7 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
 {
 	cv::Mat lanesImage;
-	if (debugWin || unitTestPic)
+	if (debugWin || unitTestPic || true)
 		outputImage.copyTo(lanesImage);
 	
 	// Crosslines sortieren nach der Reihenfolge
@@ -905,7 +905,7 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 	// Beide Linien in selbe Richtung starten lassen
 	calLanesIrregularStartDirection(lane1i, lane2i);
 	// Debugfenster anzeigen
-	if (debugWin || unitTestPic)
+	if (debugWin || unitTestPic || true)
 	{
 		cv::circle(lanesImage, (*lane1i)[0], 3, cv::Scalar(255, 255, 255), 2);
 		cv::circle(lanesImage, (*lane2i)[0], 3, cv::Scalar(255, 255, 255), 2);
@@ -917,6 +917,7 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelm‰ﬂigen Abst‰nden");
 		if (unitTestPic)
 			lanesImage.copyTo(unitTestPic4);
+		lanesImage.copyTo(outputImage);
 	}
 }
 

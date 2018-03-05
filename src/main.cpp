@@ -16,12 +16,34 @@ int main(int argc, const char** argv)
 	}
 
 	// Trackimage laden
-	std::string TrackimgFile = parser.get<std::string>("trackimg");
-	cv::Mat image = cv::imread(TrackimgFile, 1);
-	if (image.empty())
+	cv::Mat image;
+	if (parser.has("trackrecord"))
 	{
-		std::cout << "Cannot read image file: " << TrackimgFile << std::endl;
-		return -1;
+		// Trackimage von der Kamera
+		cv::VideoCapture cap(0);
+		if (!cap.isOpened())
+		{
+			std::cout << "Cannot open Camera" << std::endl;
+			return -1;
+		}
+		cap >> image;
+		std::cout << "Bildaufloesung    X: " << image.rows << "    Y: " << image.cols << std::endl;
+		if (image.empty())
+		{
+			std::cout << "Cannot grab a image from Camera" << std::endl;
+			return -1;
+		}
+	}
+	else
+	{
+		// Trackimage laden
+		std::string TrackimgFile = parser.get<std::string>("trackimg");
+		image = cv::imread(TrackimgFile, 1);
+		if (image.empty())
+		{
+			std::cout << "Cannot read image file: " << TrackimgFile << std::endl;
+			return -1;
+		}
 	}
 
 	// Parameterdatei öffnen
