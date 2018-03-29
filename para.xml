@@ -24,15 +24,24 @@
 		 <double_points_min_faktor>1.33</double_points_min_faktor>
 		 <double_points_max_faktor>2.00</double_points_max_faktor>
    </blob_detection>
-   <search_lines>
+   <search_lines_straight>
+     <max_distance>150</max_distance>
+     <max_angle>0.1</max_angle>
+   </search_lines_straight>
+   <search_lines_curved>
      <max_distance>300</max_distance>
      <max_angle>1.0</max_angle>
-   </search_lines>
+   </search_lines_curved>
+   <search_lines_checkends>
+     <max_distance>500</max_distance>
+     <max_angle>0.5</max_angle>
+     <safe_distance>100</safe_distance>
+   </search_lines_checkends>
 	 <lanes_detection>
 	   <side_to_lane>0.28</side_to_lane>
 		 <side_to_lane_cross>0.4</side_to_lane_cross>
-		 <cross_lane_filter_min_faktor>0.90</cross_lane_filter_min_faktor>
-		 <cross_lane_filter_max_faktor>1.10</cross_lane_filter_max_faktor>
+		 <cross_lane_filter_min_faktor>0.77</cross_lane_filter_min_faktor>
+		 <cross_lane_filter_max_faktor>1.23</cross_lane_filter_max_faktor>
 		 <junction_detection_box_size>15</junction_detection_box_size>
 		 <junction_detection_blur_size>5</junction_detection_blur_size>
 		 <junction_detection_count_limit>5</junction_detection_count_limit>

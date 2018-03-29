@@ -4,7 +4,7 @@
 #include <iostream>
 #include "../src/trackdetectionClass.h"
 
-int count = 8;
+int count = 12;
 int sizeX = 3280;
 int sizeY = 2464;
 int faktor = 2;

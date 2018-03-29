@@ -65,14 +65,17 @@ bool TrackDetection::calculate()
 	std::vector<std::vector<cv::Point2f>> lines;
 	do {
 		counter++;
-		if (counter > 5)
+		if (counter > 10)
 		{
 			std::cout << "Fehler: Es konnten keine sinvollen Streckenbegrenzungen berechnet werden!" << std::endl;
 			binaryImage.copyTo(outputImage);
 			return false;
 		}
-		lines = calSearchLines(keypoints);
+		lines = calSearchLinesStraight(keypoints);
+		lines = calSearchLinesCurved(lines);
 	} while (!calCheckLines(&lines));
+	if (unitTestPic)
+		cv::putText(unitTestPic2, "Wiederholung: " + std::to_string(counter), cv::Point(20, 50), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,0), 3);
 	calCreatTrackMask(lines);
 	if (!calLanes(lines)) return false;
 
@@ -272,13 +275,13 @@ void TrackDetection::calBlobDetectionMeldedPoints(std::vector<cv::KeyPoint> *key
 }
 
 // --------------------------------------------------------------------------
-// Allgorithmus um die Keypoints zu verbinden
+// Allgorithmus um die Keypoints zu verbinden aber nur gerade Linien
 // --------------------------------------------------------------------------
-std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector<cv::KeyPoint> keypoints)
+std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLinesStraight(std::vector<cv::KeyPoint> keypoints)
 {
 	// Parameter auslesen
-	cv::FileNode val = para["search_lines"];
-	
+	cv::FileNode val = para["search_lines_straight"];
+
 	// Parameter
 	std::vector<std::vector<cv::Point2f>> lines;
 	float maxDistance = (float)val["max_distance"];		// Maximaler Abstand der zwei Punkte zueinander haben darf
@@ -305,8 +308,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 			while (keypoints.size())
 			{
 				std::vector<cv::KeyPoint>::iterator nextKeypoint;
-				float bestDistance2 = maxDistancePow;
-				float bestDistance;
+				float bestDistance = maxDistancePow;
 				float bestAngle;
 				for (std::vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it)
 				{
@@ -314,6 +316,146 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 					bool samePoint = (it->pt.x == line.at(line.size() - 1).x) && (it->pt.y == line.at(line.size() - 1).y);
 					float xDiff = it->pt.x - line.at(line.size() - 1).x;
 					float yDiff = it->pt.y - line.at(line.size() - 1).y;
+					float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
+					float angle = atan2(yDiff, xDiff) + (float)M_PI;
+					float difAngle = abs(lastAngle - angle);
+					if (difAngle > M_PI) difAngle = 2 * (float)M_PI - difAngle;
+					if (!samePoint && (lastAngle == -99 || (distance < maxDistancePow && difAngle < maxAngle)))
+					{
+						// Prüfen ob er den neuen Bestwert hat
+						if (distance < bestDistance)
+						{
+							// Neuer nächster Nachbar gefunden
+							bestDistance = distance;
+							bestAngle = angle;
+							nextKeypoint = it;
+						}
+					}
+				}
+				// Kein nächster Nachbar gefunden dann Linie beenden
+				if (bestDistance == maxDistancePow)
+					break;
+				// nächsten Punkt auf der Linie abspeichern
+				line.push_back(nextKeypoint->pt);
+				lastPoint = *nextKeypoint;
+				keypoints.erase(nextKeypoint);
+				lastAngle = bestAngle;
+			}
+			// Reinfolge der Punkte rückwärts setzen und dort weiter nach Punkten suchen
+			std::reverse(line.begin(), line.end());
+			lastAngle = -99;
+			lastPoint = cv::KeyPoint();
+			if (line.size() >= 2)
+			{
+				float xDiff = line.at(line.size() - 1).x - line.at(line.size() - 2).x;
+				float yDiff = line.at(line.size() - 1).y - line.at(line.size() - 2).y;
+				lastAngle = atan2(yDiff, xDiff) + (float)M_PI;
+			}
+		} while (again);
+		// Linie zu der Linienliste hinzufügen
+		lines.push_back(line);
+	}
+
+	// Suchen nach Linien mit nur zwei oder drei Punkten und löse diese wieder auf
+	std::vector<std::vector<cv::Point2f>> newLines;
+	for (std::vector<std::vector<cv::Point2f>>::iterator it = lines.begin(); it != lines.end(); ++it)
+	{
+		// Alle Linien mit weniger als fünf Punkten auflösen
+		if (it->size() < 5)
+		{
+			// Für alle Punkt eine eigene Linie anlegen
+			for (std::vector<cv::Point2f>::iterator it2 = it->begin() + 1; it2 != it->end();)
+			{
+				std::vector<cv::Point2f> newLine;
+				newLine.push_back(*it2);
+				newLines.push_back(newLine);
+				it->erase(it2);
+			}
+		}
+	}
+	lines.insert(lines.end(), newLines.begin(), newLines.end());
+
+	// Anzeigen des Ergebnisses
+	if (debugWin || unitTestPic)
+	{
+		cv::Mat lineImage(inputImage.rows, inputImage.cols, inputImage.type(), cv::Scalar(255, 255, 255));
+		int counter = 0;
+		for (std::vector<cv::Point2f> line : lines)
+		{
+			counter++;
+			// Eine Linie in einer Farbe zeichnen
+			cv::Point2f lastPt = cv::Point2f(-1, -1);
+			cv::Scalar lineColor = hsvScalar(rand() % 180, 255, 255);
+			for (cv::Point2f pt : line)
+			{
+				if (lastPt.x != -1)
+					cv::line(lineImage, lastPt, pt, lineColor, 10);
+				else
+				{
+					// Beschriftung zeichnen
+					cv::putText(lineImage, std::to_string(counter), cv::Point((int)pt.x, (int)pt.y), cv::FONT_HERSHEY_SCRIPT_SIMPLEX, 2, lineColor, 5);
+				}
+				lastPt = pt;
+			}
+		}
+		if (debugWin)
+			DebugWinOrganizer::addWindow(lineImage, "nach der Liniendetektion-Gerade");
+		if (unitTestPic)
+			lineImage.copyTo(unitTestPic2);
+	}
+
+	return lines;
+}
+
+// --------------------------------------------------------------------------
+// Allgorithmus um die Keypoints zu verbinden
+// --------------------------------------------------------------------------
+std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLinesCurved(std::vector<std::vector<cv::Point2f>> inLines)
+{
+	// Parameter auslesen
+	cv::FileNode val = para["search_lines_curved"];
+	
+	// Parameter
+	std::vector<std::vector<cv::Point2f>> lines;
+	float maxDistance = (float)val["max_distance"];		// Maximaler Abstand der zwei Punkte zueinander haben darf
+	float maxAngle = (float)val["max_angle"];			// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
+	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
+	float k = -maxDistancePow / std::pow(maxAngle, 2);	// Stauchungsfaktor der Parabel
+
+	// Alle Geraden Linien bzw einzelnen Punkte durch gehen
+	while (inLines.size())
+	{
+		// Erster Punkt der Linie wegspeichern
+		int numKey = rand() % inLines.size();
+		std::vector<cv::Point2f> line = inLines[numKey];
+		inLines.erase(inLines.begin() + numKey);
+		float lastAngle = -99;
+		if (line.size() > 1)
+		{
+			int la = line.size() - 1;
+			float xDiff = line[la].x - line[la-1].x;
+			float yDiff = line[la].y - line[la - 1].y;
+			lastAngle = atan2(yDiff, xDiff) + (float)M_PI;
+		}
+		cv::Point2f lastPoint;
+		bool again = false;
+		// In der anderen Richtung die Suche wiederholen
+		do
+		{
+			again = !again;
+			// Alle anderen Keypoints durchgehen und immer der Linie anhängen
+			while (inLines.size())
+			{
+				std::vector<std::vector<cv::Point2f>>::iterator nextLine;
+				bool reverseCopy;
+				float bestDistance2 = maxDistancePow;
+				float bestAngle;
+				for (std::vector<std::vector<cv::Point2f>>::iterator it = inLines.begin(); it != inLines.end(); ++it)
+				{
+					// Abstands und Winkelberechnungen für ersten Punkt der Linie
+					bool samePoint = ((*it)[0].x == line.at(line.size() - 1).x) && ((*it)[0].y == line.at(line.size() - 1).y);
+					float xDiff = (*it)[0].x - line.at(line.size() - 1).x;
+					float yDiff = (*it)[0].y - line.at(line.size() - 1).y;
 					float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
 					float angle = atan2(yDiff, xDiff) + (float)M_PI;
 					float difAngle = abs(lastAngle - angle);
@@ -330,30 +472,37 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 						{
 							// Neuer nächster Nachbar gefunden
 							bestDistance2 = distance2;
-							bestDistance = distance;
 							bestAngle = angle;
-							nextKeypoint = it;
+							nextLine = it;
+							reverseCopy = false;
 						}
 					}
-				}
-				// Nach Brücken (Überfahrten) suchen. Schauen ob nach hinten geschaut auch ein Punkt exisitert bei letzter Gerade
-				if (lastAngle != -99 && bestDistance2 != maxDistancePow && lastPoint.response != 1)
-				{
-					for (cv::KeyPoint p : keypoints)
+					// Abstands und Winkelberechnungen für letzten Punkt der Linie
+					if (it->size() > 1)
 					{
-						// Bei Doppelten Punkten keine Rückwärtssuche machen bzgl. Brücken
-						if (p.response != 1)
+						int la = it->size() - 1;
+						bool samePoint = ((*it)[la].x == line.at(line.size() - 1).x) && ((*it)[la].y == line.at(line.size() - 1).y);
+						float xDiff = (*it)[la].x - line.at(line.size() - 1).x;
+						float yDiff = (*it)[la].y - line.at(line.size() - 1).y;
+						float distance = std::pow(xDiff, 2) + std::pow(yDiff, 2);
+						float angle = atan2(yDiff, xDiff) + (float)M_PI;
+						float difAngle = abs(lastAngle - angle);
+						if (difAngle > M_PI) difAngle = 2 * (float)M_PI - difAngle;
+						float w = 1 + abs(difAngle) * 2;
+						if (w > 3) w = 3;
+						float distance2 = distance * pow(w, 2);
+						// Prüfen ob Punkt im zugelassenen Winkel und Abstand hat
+						float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
+						if (!samePoint && (lastAngle == -99 || (distance < maxDistanceFromFunction && difAngle < maxAngle)))
 						{
-							float xDiff2 = line.at(line.size() - 1).x - p.pt.x;
-							float yDiff2 = line.at(line.size() - 1).y - p.pt.y;
-							float angle2 = atan2(yDiff2, xDiff2) + (float)M_PI;
-							float difAngle2 = abs(angle2 - bestAngle);
-							float distance2 = std::pow(xDiff2, 2) + std::pow(yDiff2, 2);
-							if (difAngle2 > M_PI) difAngle2 = (float)(2 * M_PI - difAngle2);
-							if (difAngle2 < 0.1 && distance2 < bestDistance * 1.75)
+							// Prüfen ob er den neuen Bestwert hat
+							if (distance2 < bestDistance2)
 							{
-								bestDistance2 = maxDistancePow;
-								std::cout << "Brueckeneinfahrt wurde erkannt" << std::endl;
+								// Neuer nächster Nachbar gefunden
+								bestDistance2 = distance2;
+								bestAngle = angle;
+								nextLine = it;
+								reverseCopy = true;
 							}
 						}
 					}
@@ -362,15 +511,17 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 				if (bestDistance2 == maxDistancePow)
 					break;
 				// nächsten Punkt auf der Linie abspeichern
-				line.push_back(nextKeypoint->pt);
-				lastPoint = *nextKeypoint;
-				keypoints.erase(nextKeypoint);
+				if (reverseCopy)
+					std::reverse(nextLine->begin(), nextLine->end());
+				line.insert(line.end(), nextLine->begin(), nextLine->end());
+				lastPoint = line.back();
+				inLines.erase(nextLine);
 				lastAngle = bestAngle;
 			}
 			// Reinfolge der Punkte rückwärts setzen und dort weiter nach Punkten suchen
 			std::reverse(line.begin(), line.end());
 			lastAngle = -99;
-			lastPoint = cv::KeyPoint();
+			lastPoint = cv::Point2f();
 			if (line.size() >= 2)
 			{
 				float xDiff = line.at(line.size() - 1).x - line.at(line.size() - 2).x;
@@ -415,7 +566,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 			}
 		}
 		if (debugWin)
-			DebugWinOrganizer::addWindow(lineImage, "nach der Liniendetektion");
+			DebugWinOrganizer::addWindow(lineImage, "nach der Liniendetektion-Kurven");
 		if (unitTestPic)
 			lineImage.copyTo(unitTestPic2);
 	}
@@ -429,19 +580,21 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLines(std::vector
 bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 {
 	// Parameter auslesen
-	cv::FileNode val = para["search_lines"];
+	cv::FileNode val = para["search_lines_checkends"];
 
 	// Parameter
-	float maxDistance = (float)val["max_distance"]+200;		// Maximaler Abstand der zwei Punkte zueinander haben darf
+	float maxDistance = (float)val["max_distance"];		// Maximaler Abstand der zwei Punkte zueinander haben darf
 	float maxAngle = (float)val["max_angle"];			// Maximale Winkelabweichung zu geradeaus der zum nächsten Punkt auftreten darf (Rad)
+	float maxSafeDistance = (float)val["safe_distance"];// Abstand in dem der Winkel egal ist
 	float maxDistancePow = std::pow(maxDistance, 2);	// Einmalig Expotentialwert berechnen zum schnelleren Auswerten
+	float maxSafeDistancePow = std::pow(maxSafeDistance, 2);
 	float k = -maxDistancePow / std::pow(maxAngle, 2);	// Stauchungsfaktor der Parabel
 
 	// Alle Linien durchgehen
 	for (std::vector<std::vector<cv::Point2f>>::iterator line = lines->begin(); line != lines->end();)
 	{
 		// Eine Sinnvolle Linie hat min. 10 Punkte
-		if (line->size() > 10)
+		if (line->size() > 25)
 		{
 			// Berechnung aller Distanzen und Winkel
 			float xDiff = line->at(0).x - line->at(line->size() - 1).x;
@@ -457,7 +610,7 @@ bool TrackDetection::calCheckLines(std::vector<std::vector<cv::Point2f>> *lines)
 			while (difAngle > (float)M_PI) difAngle = 2 * (float)M_PI - difAngle;
 			float maxDistanceFromFunction = k * pow(difAngle, 2) + maxDistancePow;
 			// Prüfen ob auch Verbindugslinie passt
-			if (distance < maxDistanceFromFunction && difAngle < maxAngle)
+			if (distance < maxDistanceFromFunction && difAngle < maxAngle || distance < maxSafeDistancePow)
 				++line;
 			else
 				line = lines->erase(line);
@@ -911,8 +1064,10 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 		cv::circle(lanesImage, (*lane2i)[0], 3, cv::Scalar(255, 255, 255), 2);
 		for (int i = 0; i < lane1i->size() - 1; i++)
 			cv::line(lanesImage, (*lane1i)[i], (*lane1i)[i + 1], cv::Scalar(255, 0, 0), 2);
+		cv::line(lanesImage, (*lane1i)[0], (*lane1i)[lane1i->size()-1], cv::Scalar(255, 0, 0), 2);
 		for (int i = 0; i < lane2i->size() - 1; i++)
 			cv::line(lanesImage, (*lane2i)[i], (*lane2i)[i + 1], cv::Scalar(0, 255, 0), 2);
+		cv::line(lanesImage, (*lane2i)[0], (*lane2i)[lane2i->size() - 1], cv::Scalar(0, 255 , 0), 2);
 		if (debugWin)
 			DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelmäßigen Abständen");
 		if (unitTestPic)

@@ -33,7 +33,8 @@ private:
 	void calMorphology(cv::Mat *image);
 	std::vector<cv::KeyPoint> calBlobDetection(cv::Mat *image);
 	void calBlobDetectionMeldedPoints(std::vector<cv::KeyPoint> *keypoints);
-	std::vector<std::vector<cv::Point2f>> calSearchLines(std::vector<cv::KeyPoint> keypoints);
+	std::vector<std::vector<cv::Point2f>> calSearchLinesStraight(std::vector<cv::KeyPoint> keypoints);
+	std::vector<std::vector<cv::Point2f>> calSearchLinesCurved(std::vector<std::vector<cv::Point2f>> inLines);
 	bool calCheckLines(std::vector<std::vector<cv::Point2f>> *lines);
 	void calCreatTrackMask(std::vector<std::vector<cv::Point2f>> lines);
 	bool calLanes(std::vector<std::vector<cv::Point2f>> lines);
