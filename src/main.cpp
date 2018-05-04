@@ -4,6 +4,10 @@
 
 #include "trackdetectionClass.h"
 #include "commandlineparser.h"
+#include "informationShareClass.h"
+
+void carDetectionThread ();
+void carControlThread ();
 
 int main(int argc, const char** argv)
 {
@@ -66,6 +70,25 @@ int main(int argc, const char** argv)
 	trackDetection.setPicture(image);
 	trackDetection.calculate();
 	image = trackDetection.getResultPicture();
+		
+	// Threads anlegen
+	// -------------------------------------------
+	// bluetoothConnectionClass BLECon;
+	// BLECon.connect();
+	// int trackpoints;
+	// float trackAngles[trackpoints];
+	// InformationShareClass infoPackage1, infoPackage2;
+	// 
+	// CarDetectionClass carDetection;
+	// carDetection.setInfoPackage(&infoPackage1, &infoPackage2);
+	// 
+	// carControlDomiClass carControlDomi1(infoPackage1, trackDetection.GetTrackpoints(), trackDetection.GetTrackAngles(), BLECon.sendChannel1);
+	//
+	//
+	// 
+	// boost::thread thread1(carDetection.loopingThread);
+	// boost::thread thread2(carControlDomi1.loopingThread);
+	// boost::thread thread3(Spur2);
 	
 	// Anzeigen
 	cv::namedWindow("Result", CV_GUI_NORMAL);
@@ -74,4 +97,14 @@ int main(int argc, const char** argv)
 	cv::waitKey(0);
 
 	return 0;
+}
+
+void carDetectionThread ()
+{
+
+}
+
+void carControlThread ()
+{
+
 }

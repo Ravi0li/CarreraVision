@@ -27,6 +27,9 @@
     <ClCompile Include="src\debugWinOrganizerClass.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="src\informationShareClass.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\trackdetectionClass.h">
@@ -36,6 +39,21 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="src\debugWinOrganizerClass.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bluetoothConnectionClass.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\carControlDomiClass.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\carControlOliClass.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\carDetectionClass.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\informationShareClass.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>
