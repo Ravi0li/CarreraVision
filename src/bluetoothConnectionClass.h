@@ -1,12 +1,24 @@
-//#include <boost/asio/serial_port.hpp> 
-//#include <boost/asio.hpp> 
-//
-//
-//boost::asio::io_service io;
-//boost::asio::serial_port port(io);
-//port.open("COM17");
-//port.set_option(boost::asio::serial_port_base::baud_rate(115200));
-//std::cout << "warten" << std::endl;
-//Sleep(5000);
-//char c = 'r';
-//boost::asio::write(port, boost::asio::buffer(&c, 1));
+#pragma once
+#include <string>
+#include <boost/asio/serial_port.hpp> 
+#include <boost/asio.hpp> 
+
+class BluetoothConnectionClass
+{
+public:
+	// C'tor & D'tor
+	BluetoothConnectionClass();
+	~BluetoothConnectionClass();
+	
+	// Methoden
+	void connect();
+	void disconnect();
+	void sendChannel1();
+	void sendChannel2();
+
+private:
+	boost::asio::io_service* io;	// IO Service für BT-Verbindung
+	boost::asio::serial_port* port;	// Serieller Port für BT-Verbindung
+	std::string serialPortString;	// Zeichenkette für COM-Port
+
+};

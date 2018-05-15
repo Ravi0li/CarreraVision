@@ -30,6 +30,9 @@
     <ClCompile Include="src\informationShareClass.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="src\bluetoothConnectionClass.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\trackdetectionClass.h">
