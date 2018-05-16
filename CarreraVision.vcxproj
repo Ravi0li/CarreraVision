@@ -92,6 +92,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(OPENCV_DIR)\build\include;$(BOOST_DIR)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>"$(OPENCV_DIR)\build\x64\vc15\lib";"$(BOOST_DIR)\lib64-msvc-14.1"</AdditionalLibraryDirectories>
@@ -114,6 +115,7 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>"$(OPENCV_DIR)\build\include";"$(BOOST_DIR)"</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>"$(OPENCV_DIR)\build\x64\vc15\lib";"$(BOOST_DIR)\lib64-msvc-14.1"</AdditionalLibraryDirectories>
@@ -138,6 +140,7 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(OPENCV_DIR)\build\include;$(BOOST_DIR)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -159,6 +162,7 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(OPENCV_DIR)\build\include;$(BOOST_DIR)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
