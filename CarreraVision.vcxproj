@@ -178,6 +178,7 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
   <ItemGroup>
     <ClCompile Include="src\bluetoothConnectionClass.cpp" />
     <ClCompile Include="src\captureClass.cpp" />
+    <ClCompile Include="src\carControlDomiClass.cpp" />
     <ClCompile Include="src\debugWinOrganizerClass.cpp" />
     <ClCompile Include="src\informationShareClass.cpp" />
     <ClCompile Include="src\main.cpp" />

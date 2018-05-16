@@ -13,7 +13,7 @@ BluetoothConnectionClass::BluetoothConnectionClass()
 	baudRate = 115200;
 	setValue1 = 0;
 	setValue2 = 0;
-	sendString = new char[1];
+	sendString = new char[1];	// Länge 1 ist erstmal noch Platzhalter
 	sendStringLength = 1;
 
 	updateSendString();
@@ -34,7 +34,7 @@ int BluetoothConnectionClass::connect()
 		return -1;
 	}
 
-	Sleep(100);
+	Sleep(1000);
 	return 1;
 }
 
@@ -141,8 +141,9 @@ void BluetoothConnectionClass::updateSendString()
 	sendString[sendStringLength - 1] = '\n';
 }
 
-
-
+// --------------------------------------------------------------------------
+// Allokierten Speicher freigeben
+// --------------------------------------------------------------------------
 BluetoothConnectionClass::~BluetoothConnectionClass()
 {
 	// Gebe allokierte Objekte wieder frei
