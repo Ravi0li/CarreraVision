@@ -8,9 +8,10 @@ public:
 	void setPicture(cv::Mat _inputImage);
 	void setDebugWin(bool _debugWin);
 	void setUnitTestPic(bool _unitTestPic);
-	bool calculate();
+	bool calculate(float pointDistanceInMeter);
 	cv::Mat getResultPicture();
 	cv::Mat getMaskPicture();
+	void getPointLines(std::vector<cv::Point2f> *lane1, std::vector<cv::Point2f> *lane2);
 	void getUnitTestPic(cv::Mat *pic1, cv::Mat *pic2, cv::Mat *pic3, cv::Mat *pic4);
 
 private:
@@ -22,6 +23,8 @@ private:
 	bool debugWin;			// Sollen alle Zusatzfenster angezeigt werden
 	bool unitTestPic;		// Sollen Zwischenbilder abgespeichert werden zum späteren auslesen
 	cv::FileNode para;	    // Parameter zur Auswertung
+	int pixelBetweenPoints; // Abstand zwischen zwei Punkten am Ende
+	std::vector<cv::Point2f> lane1r, lane2r; // Linien mit den Auswertepuntken
 
 	cv::Mat unitTestPic1;	// Zwischenbilder die nur beim Unittest verwendet werden
 	cv::Mat unitTestPic2;	//   ||
@@ -37,15 +40,17 @@ private:
 	std::vector<std::vector<cv::Point2f>> calSearchLinesCurved(std::vector<std::vector<cv::Point2f>> inLines);
 	bool calCheckLines(std::vector<std::vector<cv::Point2f>> *lines);
 	void calCreatTrackMask(std::vector<std::vector<cv::Point2f>> lines);
-	bool calLanes(std::vector<std::vector<cv::Point2f>> lines);
+	bool calLanes(std::vector<std::vector<cv::Point2f>> lines, float pointDistanceInMeter);
 	bool calLanesSideDirection(std::vector<cv::Point2f> *line1, std::vector<cv::Point2f> *line2, linesDir *line1dir, linesDir *line2dir);
 	void calLanesCrossLines(std::vector<cv::Point2f> baseLines, std::vector<cv::Point2f> targetLines, linesDir baseDir, std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines, bool invertLines);
-	void calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines);
+	void calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines, float pointDistanceInMeter);
 	void calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines);
 	void calLanesIrregularSortCrosslines(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines);
 	void calLanesIrregularSortLanes(std::vector<cv::Point2f> laneUnsort, std::vector<cv::Point2f> *laneSort);
 	bool calLanesIrregularJunctionDetection(cv::Point2f pos);
 	void calLanesIrregularStartDirection(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i);
+	void calLanesRegular(std::vector<cv::Point2f> lane1i, std::vector<cv::Point2f> lane2i);
+	void calLanesRegularSingle(std::vector<cv::Point2f> *lanei, std::vector<cv::Point2f> *laner);
 
 	// Hilfsfunktionen für die Streckenverarbeitung
 	void showHistogram(cv::Mat image, std::string title, int posX, int posY);

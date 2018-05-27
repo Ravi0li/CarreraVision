@@ -68,8 +68,10 @@ int main(int argc, const char** argv)
 	TrackDetection trackDetection(para["track_detection"]);
 	trackDetection.setDebugWin(parser.get<bool>("debugwin"));
 	trackDetection.setPicture(image);
-	trackDetection.calculate();
+	trackDetection.calculate(0.20);
 	image = trackDetection.getResultPicture();
+	std::vector<cv::Point2f> lane1, lane2;
+	trackDetection.getPointLines(&lane1, &lane2);
 		
 	// Threads anlegen
 	// -------------------------------------------
