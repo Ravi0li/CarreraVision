@@ -6,7 +6,8 @@
 class CarControlDomiClass
 {
 public:
-	CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, boost::geometry::model::d2::point_xy<float>* cartesianTrackPoints, BluetoothConnectionClass* bluetooth, float pointDistance);
+	CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, boost::geometry::model::d2::point_xy<float>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance);
+	void loopingThread();
 	~CarControlDomiClass();
 
 private:
@@ -25,15 +26,14 @@ private:
 	float pointDistance;																			// Abstand zwischen zwei Punkten (Trackpoints), Einheit [m]
 
 	// Schnittstelle
-	InformationShareClass* infoPackage;		// Zeiger auf Schnittstellen Klasse
-	int countTrackpoints;					// Anzahl Streckenpunkte
-	BluetoothConnectionClass* bluetooth;	// Zeiger auf Bluetooth Klasse, TODO: Zeiger auf Methode wäre sinnvoller!
+	InformationShareClass* infoPackage;							// Zeiger auf Schnittstellen Klasse
+	int countTrackpoints;										// Anzahl Streckenpunkte
+	BluetoothConnectionClass* bluetoothObject;					// Zeiger auf Bluetooth Objekt
+	int channel;												// Spur 1 oder 2
 
 	// Methoden
 	int calculateCurrentControlInput(float radiusCurrent);
 	void calculateGlobalControlInput();
 	float distanceBetweenPoints(boost::geometry::model::d2::point_xy<float> point1, boost::geometry::model::d2::point_xy<float> point2);
 	float twiceSignedArea(boost::geometry::model::d2::point_xy<float> point1, boost::geometry::model::d2::point_xy<float> point2, boost::geometry::model::d2::point_xy<float> point3);
-	void loopingThread();
-
 };

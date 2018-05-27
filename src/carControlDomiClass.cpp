@@ -9,7 +9,7 @@
 // --------------------------------------------------------------------------
 // Kalibrierte Werte festlegen
 // --------------------------------------------------------------------------
-CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, boost::geometry::model::d2::point_xy<float>* cartesianTrackPoints, BluetoothConnectionClass* bluetooth, float pointDistance)
+CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, boost::geometry::model::d2::point_xy<float>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance)
 {
 	// Diese Werte müssen einmalig per Kalibrierung festgelegt und händisch gemessen werden
 	refCarMass = (float) 0.150;		// kg
@@ -24,7 +24,8 @@ CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int
 	this->infoPackage = infoPackage;
 	this->countTrackpoints = countTrackpoints;
 	this->cartesianTrackPoints = cartesianTrackPoints;
-	this->bluetooth = bluetooth;
+	this->bluetoothObject = bluetoothObject;
+	this->channel = channel;
 	this->pointDistance = pointDistance;
 
 	trackVelocity = new int[countTrackpoints];
@@ -65,7 +66,6 @@ void CarControlDomiClass::calculateGlobalControlInput()
 
 	for (int i = 0; i < countTrackpoints; i++)
 	{
-		// R = (|Punkt1-Punkt2| * |Punkt2-Punkt3| * |Punkt3-Punkt1|) / (4 * A)
 		float diff1, diff2, diff3, area4;
 
 		if (i == 0)
@@ -100,6 +100,7 @@ void CarControlDomiClass::calculateGlobalControlInput()
 		}
 	
 		// Berechne Krümmungsradius
+		// R = (|Punkt1-Punkt2| * |Punkt2-Punkt3| * |Punkt3-Punkt1|) / (4 * A)
 		if (area4 < 0.05 * pointDistance)
 		{
 			// Hier kann man davon ausgehen, dass die Punkte auf einer Geraden liegen
@@ -142,7 +143,6 @@ float CarControlDomiClass::twiceSignedArea(boost::geometry::model::d2::point_xy<
 void CarControlDomiClass::loopingThread()
 {	
 	int delaySamples = 5;
-
 	// Maximal mögliche Geschwindigkeit / Stellsignal für jeden Streckenabschnitt berechnen
 	calculateGlobalControlInput();
 
@@ -151,16 +151,21 @@ void CarControlDomiClass::loopingThread()
 	{
 		int position = 0;
 
-		// TODO: 15 ms warten
+		//boost::this_thread::sleep
 
 		infoPackage->lock();
 		position = infoPackage->GetPosition();
 		infoPackage->unlock();
 
 		// Stellsignal per BT senden
-		bluetooth->sendChannel1(trackVelocity[(position + delaySamples) % countTrackpoints]);
-		//oder
-		//bluetooth->sendChannel2;
+		if (channel == 1)
+		{
+			bluetoothObject->sendChannel1(trackVelocity[(position + delaySamples) % countTrackpoints]);
+		}
+		else if (channel == 2)
+		{
+			bluetoothObject->sendChannel2(trackVelocity[(position + delaySamples) % countTrackpoints]);
+		}
 	}
 }
 
