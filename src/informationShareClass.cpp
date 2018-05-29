@@ -1,4 +1,4 @@
-#include "informationshareClass.h"
+#include "informationShareClass.h"
 
 InformationShareClass::InformationShareClass()
 {
