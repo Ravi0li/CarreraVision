@@ -4,9 +4,6 @@
 #include <iostream>
 #include <boost/asio/serial_port.hpp> 
 #include <boost/asio.hpp> 
-#ifdef LINUX
-#include <unistd.h>
-#endif
 
 
 BluetoothConnectionClass::BluetoothConnectionClass()
@@ -38,7 +35,7 @@ int BluetoothConnectionClass::connect()
 		return -1;
 	}
 
-	Sleep(1000);
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	return 1;
 }
 
@@ -56,7 +53,7 @@ int BluetoothConnectionClass::disconnect()
 		return -1;
 	}
 
-	Sleep(100);
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	return 1;
 }
 
@@ -76,7 +73,7 @@ void BluetoothConnectionClass::sendChannel1(int set)
 		std::cout << " Cannout send data via channel 1: " << ex.what() << std::endl;
 	}
 
-	Sleep(1);
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 // --------------------------------------------------------------------------
@@ -95,7 +92,7 @@ void BluetoothConnectionClass::sendChannel2(int set)
 		std::cout << " Cannout send data via channel 2: " << ex.what() << std::endl;
 	}
 
-	Sleep(1);
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 // --------------------------------------------------------------------------
@@ -115,7 +112,7 @@ void BluetoothConnectionClass::sendChannel12(int set1, int set2)
 		std::cout << " Cannout send data via channel 1 and 2: " << ex.what() << std::endl;
 	}
 
-	Sleep(1);
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 // --------------------------------------------------------------------------
