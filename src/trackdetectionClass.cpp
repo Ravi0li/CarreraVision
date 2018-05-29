@@ -80,7 +80,7 @@ bool TrackDetection::calculate(float pointDistanceInMeter)
 	if (!calLanes(lines, pointDistanceInMeter)) return false;
 
 	finisch = clock();
-	std::cout << "Streckenerkennung abgeschlossen (" << finisch - start << "ms)";
+	std::cout << "Streckenerkennung abgeschlossen (" << finisch - start << "ms)" << std::endl;
 	
 	return true;
 }
