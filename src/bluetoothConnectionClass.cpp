@@ -4,6 +4,10 @@
 #include <iostream>
 #include <boost/asio/serial_port.hpp> 
 #include <boost/asio.hpp> 
+#ifdef LINUX
+#include <unistd.h>
+#endif
+
 
 BluetoothConnectionClass::BluetoothConnectionClass()
 {	
