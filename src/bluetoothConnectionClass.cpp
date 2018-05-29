@@ -4,7 +4,8 @@
 #include <iostream>
 #include <boost/asio/serial_port.hpp> 
 #include <boost/asio.hpp> 
-
+#include <chrono>
+#include <thread>
 
 BluetoothConnectionClass::BluetoothConnectionClass()
 {	
