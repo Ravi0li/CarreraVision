@@ -101,7 +101,8 @@
     </Link>
     <PostBuildEvent>
       <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340d.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
-copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "%OPENCV_DIR%\build\bin\opencv_ffmpeg340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
     <PreLinkEvent>
       <Command>
@@ -124,7 +125,8 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
     </Link>
     <PostBuildEvent>
       <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340d.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
-copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "%OPENCV_DIR%\build\bin\opencv_ffmpeg340_64.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
     <PreLinkEvent>
       <Command>
@@ -150,7 +152,8 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
     </Link>
     <PostBuildEvent>
       <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
-copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "%OPENCV_DIR%\build\bin\opencv_ffmpeg340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -172,7 +175,8 @@ copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
     </Link>
     <PostBuildEvent>
       <Command>copy "%OPENCV_DIR%\build\x64\vc15\bin\opencv_world340.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
-copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
+copy "$(SolutionDir)\para.xml" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"
+copy "%OPENCV_DIR%\build\bin\opencv_ffmpeg340_64.dll" "$(SolutionDir)bin\$(Configuration)_$(Platform)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -1254,7 +1254,7 @@ void TrackDetection::calLanesRegular(std::vector<cv::Point2f> lane1i, std::vecto
 void TrackDetection::calLanesRegularSingle(std::vector<cv::Point2f> *lanei, std::vector<cv::Point2f> *laner)
 {
 	// Ersten Punkte festlegen
-	lane1r.push_back((*lanei)[0]);
+	laner->push_back((*lanei)[0]);
 	cv::Point2f pL = (*lanei)[0];
 	cv::Point2f p1 = pL;
 	cv::Point2f p2;
@@ -1287,7 +1287,7 @@ void TrackDetection::calLanesRegularSingle(std::vector<cv::Point2f> *lanei, std:
 			if (found)
 			{
 				// Gefunden Punkt hinzufügen
-				lane1r.push_back(pTop);
+				laner->push_back(pTop);
 				// Abgearbeitete Punkte löschen
 				while (p2 != *lanei->begin())
 					lanei->erase(lanei->begin());

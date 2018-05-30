@@ -84,7 +84,7 @@ int main(int argc, const char** argv)
 	CarDetection carDetection(lane1, lane2);
 	carDetection.setInfoPackage(&infoPackage1, &infoPackage2);
 	carDetection.setOutputImage(&image);
-	if (!carDetection.setSource(""))
+	if (!carDetection.setSource("./demo/Videos/ExampleE1_iso200_b5000.mp4"))
 	{
 		std::cout << "Programmabbruch" << std::endl;
 		std::getchar();
