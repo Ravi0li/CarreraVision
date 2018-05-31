@@ -49,7 +49,7 @@ void TrackDetection::setUnitTestPic(bool _unitTestPic)
 // --------------------------------------------------------------------------
 // Auswertung des Streckenbildes
 // --------------------------------------------------------------------------
-bool TrackDetection::calculate()
+bool TrackDetection::calculate(float pointDistanceInMeter)
 {
 	cv::Mat binaryImage;
 	inputImage.copyTo(binaryImage);
@@ -77,10 +77,10 @@ bool TrackDetection::calculate()
 	if (unitTestPic)
 		cv::putText(unitTestPic2, "Wiederholung: " + std::to_string(counter), cv::Point(20, 50), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,0), 3);
 	calCreatTrackMask(lines);
-	if (!calLanes(lines)) return false;
+	if (!calLanes(lines, pointDistanceInMeter)) return false;
 
 	finisch = clock();
-	std::cout << "Streckenerkennung abgeschlossen (" << finisch - start << "ms)";
+	std::cout << "Streckenerkennung abgeschlossen (" << finisch - start << "ms)" << std::endl;
 	
 	return true;
 }
@@ -99,6 +99,15 @@ cv::Mat TrackDetection::getResultPicture()
 cv::Mat TrackDetection::getMaskPicture()
 {
 	return maskImage;
+}
+
+// --------------------------------------------------------------------------
+// Gibt die Punktereihe zur¸ck
+// --------------------------------------------------------------------------
+void TrackDetection::getPointLines(std::vector<cv::Point2f> *lane1, std::vector<cv::Point2f> *lane2)
+{
+	*lane1 = lane1r;
+	*lane2 = lane2r;
 }
 
 // --------------------------------------------------------------------------
@@ -370,6 +379,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLinesStraight(std
 				newLine.push_back(*it2);
 				newLines.push_back(newLine);
 				it->erase(it2);
+				it2 = it->begin() + 1;
 			}
 		}
 	}
@@ -672,7 +682,7 @@ void TrackDetection::calCreatTrackMask(std::vector<std::vector<cv::Point2f>> lin
 // --------------------------------------------------------------------------
 // Berechnet die Fahrspuren und zeichnet sie ein
 // --------------------------------------------------------------------------
-bool TrackDetection::calLanes(std::vector<std::vector<cv::Point2f>> lines)
+bool TrackDetection::calLanes(std::vector<std::vector<cv::Point2f>> lines, float pointDistanceInMeter)
 {
 	// Die zwei auszuwertenden Spuren teilen
 	std::vector<cv::Point2f> line1, line2;
@@ -689,11 +699,14 @@ bool TrackDetection::calLanes(std::vector<std::vector<cv::Point2f>> lines)
 	calLanesCrossLines(line2, line1, line2dir, &crosslines, true);
 
 	// Aussortieren von zu kleinen und groﬂen Crosslines
-	calLanesCrossLinesFilter(&crosslines);
+	calLanesCrossLinesFilter(&crosslines, pointDistanceInMeter);
 
 	// Spurenlinien berechnen (unregelm‰sige Abst‰nde)
 	std::vector<cv::Point2f> lane1i, lane2i;
 	calLanesIrregular(&lane1i, &lane2i, crosslines);
+
+	// Spurenlinien berechnen (regelm‰sige Abst‰nde)
+	calLanesRegular(lane1i, lane2i);
 
 	return true;
 }
@@ -919,7 +932,7 @@ void TrackDetection::calLanesCrossLines(std::vector<cv::Point2f> baseLines, std:
 // --------------------------------------------------------------------------
 // analysiert die Querlinien und wirft zu kurze oder lange weg
 // --------------------------------------------------------------------------
-void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines)
+void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f, cv::Point2f>> *crosslines, float pointDistanceInMeter)
 {
 	// Parameter auslesen
 	cv::FileNode val = para["lanes_detection"];
@@ -962,6 +975,11 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 		else
 			++p;
 	}
+	// Pixel pro Meter berechnen und Abstand zwischen zwei Punkten am ende
+	float trackWidth = 0.25;
+	float pixlePerMeter = sqrt((float)maxPos) / trackWidth;
+	pixelBetweenPoints = pointDistanceInMeter * pixlePerMeter;
+	std::cout << "Abstand zwischen den Auswertepunkten: " << pixelBetweenPoints << std::endl;
 
 	// Infofenster zum Debuggen
 	if (debugWin || unitTestPic)
@@ -987,7 +1005,7 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::vector<cv::Point2f> *lane2i, std::vector<std::pair<cv::Point2f, cv::Point2f>> crosslines)
 {
 	cv::Mat lanesImage;
-	if (debugWin || unitTestPic || true)
+	if (debugWin || unitTestPic)
 		outputImage.copyTo(lanesImage);
 	
 	// Crosslines sortieren nach der Reihenfolge
@@ -1058,7 +1076,7 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 	// Beide Linien in selbe Richtung starten lassen
 	calLanesIrregularStartDirection(lane1i, lane2i);
 	// Debugfenster anzeigen
-	if (debugWin || unitTestPic || true)
+	if (debugWin || unitTestPic)
 	{
 		cv::circle(lanesImage, (*lane1i)[0], 3, cv::Scalar(255, 255, 255), 2);
 		cv::circle(lanesImage, (*lane2i)[0], 3, cv::Scalar(255, 255, 255), 2);
@@ -1072,7 +1090,6 @@ void TrackDetection::calLanesIrregular(std::vector<cv::Point2f> *lane1i, std::ve
 			DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelm‰ﬂigen Abst‰nden");
 		if (unitTestPic)
 			lanesImage.copyTo(unitTestPic4);
-		lanesImage.copyTo(outputImage);
 	}
 }
 
@@ -1198,6 +1215,100 @@ void TrackDetection::calLanesIrregularStartDirection(std::vector<cv::Point2f> *l
 	float vecsub = pow(vecX1 - vecX2, 2) + pow(vecY1 - vecY2, 2);
 	if (vecadd < vecsub)
 		std::reverse(lane2i->begin(), lane2i->end());
+}
+
+// --------------------------------------------------------------------------
+// Berechnet die Punktpositionen an denen sp‰ter das Auto abgefragt wird
+// gegebendenfalls an
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesRegular(std::vector<cv::Point2f> lane1i, std::vector<cv::Point2f> lane2i)
+{
+	cv::Mat lanesImage;
+	if (debugWin || unitTestPic)
+		outputImage.copyTo(lanesImage);
+
+	// Berechnen der zwei Spuren
+	calLanesRegularSingle(&lane1i, &lane1r);
+	calLanesRegularSingle(&lane2i, &lane2r);
+
+	// Debugfenster anzeigen
+	if (debugWin || unitTestPic)
+	{
+		for (cv::Point2f p : lane1r) 
+			cv::circle(lanesImage, p, 2, cv::Scalar(255, 255, 255), 2);
+		for (cv::Point2f p : lane2r)
+			cv::circle(lanesImage, p, 2, cv::Scalar(255, 255, 255), 2);
+		/*
+		if (debugWin)
+			DebugWinOrganizer::addWindow(lanesImage, "Spuren eingezeichnet mit unregelm‰ﬂigen Abst‰nden");
+		if (unitTestPic)
+			lanesImage.copyTo(unitTestPic4);*/
+		lanesImage.copyTo(outputImage);
+	}
+}
+
+// --------------------------------------------------------------------------
+// Berechnet die Punktpositionen an denen sp‰ter das Auto abgefragt wird
+// Einer Spur
+// --------------------------------------------------------------------------
+void TrackDetection::calLanesRegularSingle(std::vector<cv::Point2f> *lanei, std::vector<cv::Point2f> *laner)
+{
+	// Ersten Punkte festlegen
+	laner->push_back((*lanei)[0]);
+	cv::Point2f pL = (*lanei)[0];
+	cv::Point2f p1 = pL;
+	cv::Point2f p2;
+	lanei->push_back((*lanei)[0]);
+	lanei->erase(lanei->begin());
+	// Regelm‰ﬂige Abst‰nde herausfinden
+	for (std::vector<cv::Point2f>::iterator it = lanei->begin(); it != lanei->end();)
+	{
+		cv::Point2f p2 = *it;
+		float dis = sqrt(pow(p2.x - pL.x, 2) + pow(p2.y - pL.y, 2));
+		if (dis > pixelBetweenPoints)
+		{
+			// Schnittpunkt berechnen und hinzuf¸gen
+			cv::Point2f pTop;
+			bool found = false;
+			float deltaX = (p2.x - p1.x) / dis;
+			float deltaY = (p2.y - p1.y) / dis;
+			for (int i = 0; i <= dis + 1 && !found; i++)
+			{
+				float x = (p1.x + deltaX * i) - pL.x;
+				float y = (p1.y + deltaX * i) - pL.y;
+				float dis2 = sqrt(pow(x, 2) + pow(y, 2));
+				if (dis2 > pixelBetweenPoints)
+				{
+					pTop.x = p1.x + deltaX * i;
+					pTop.y = p1.y + deltaY * i;
+					found = true;
+				}
+			}
+			if (found)
+			{
+				// Gefunden Punkt hinzuf¸gen
+				laner->push_back(pTop);
+				// Abgearbeitete Punkte lˆschen
+				while (p2 != *lanei->begin())
+					lanei->erase(lanei->begin());
+				// Letzen Punkt ‰ndern
+				pL = pTop;
+				p1 = pL;
+				// Wieder auf ersten Punkt setzen
+				it = lanei->begin();
+			}
+			else
+			{
+				p1 = p2;
+				it++;
+			}
+		}
+		else
+		{
+			p1 = p2;
+			it++;
+		}
+	}
 }
 
 // --------------------------------------------------------------------------
