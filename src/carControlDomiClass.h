@@ -1,7 +1,6 @@
 #pragma once
 #include "informationShareClass.h"
 #include "bluetoothConnectionClass.h"
-#include <boost/geometry.hpp>
 #include <opencv2/core.hpp>
 
 class CarControlDomiClass

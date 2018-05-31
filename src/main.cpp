@@ -33,6 +33,7 @@ int main(int argc, const char** argv)
 		if (!cap.isOpened())
 		{
 			std::cout << "Cannot open Camera" << std::endl;
+			std::getchar();
 			return -1;
 		}
 		cap.set(CV_CAP_PROP_FPS, 10);
@@ -43,6 +44,7 @@ int main(int argc, const char** argv)
 		if (image.empty())
 		{
 			std::cout << "Cannot grab a image from Camera" << std::endl;
+			std::getchar();
 			return -1;
 		}
 		cv::namedWindow("Input", CV_GUI_NORMAL);
@@ -56,6 +58,7 @@ int main(int argc, const char** argv)
 		if (image.empty())
 		{
 			std::cout << "Cannot read image file: " << TrackimgFile << std::endl;
+			std::getchar();
 			return -1;
 		}
 	}
@@ -66,6 +69,7 @@ int main(int argc, const char** argv)
 	if (!para.open(paraFile, cv::FileStorage::READ))
 	{
 		std::cout << "Cannot read para file: " << paraFile << std::endl;
+		std::getchar();
 		return -1;
 	}
 
@@ -87,7 +91,7 @@ int main(int argc, const char** argv)
 	CarDetection carDetection(lane1, lane2);
 	carDetection.setInfoPackage(&infoPackage1, &infoPackage2);
 	carDetection.setOutputImage(&image);
-	if (!carDetection.setSource("./demo/Videos/ExampleE1_iso200_b5000.mp4"))
+	if (!carDetection.setSource(parser.get<std::string>("trackvid")))
 	{
 		std::cout << "Programmabbruch" << std::endl;
 		std::getchar();
