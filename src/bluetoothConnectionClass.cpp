@@ -15,8 +15,8 @@ BluetoothConnectionClass::BluetoothConnectionClass()
 	baudRate = 115200;
 	setValue1 = 0;
 	setValue2 = 0;
-	sendString = new char[1];	// Länge 1 ist erstmal noch Platzhalter
-	sendStringLength = 1;
+	sendString = new char[2];	// Länge 1 ist erstmal noch Platzhalter
+	sendStringLength = 2;
 
 	updateSendString();
 }
@@ -66,7 +66,7 @@ void BluetoothConnectionClass::sendChannel1(int set)
 	try {
 		setValue1 = set;
 		updateSendString();
-		boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
+		//boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
 		
 	}
 	catch (boost::system::system_error const&  ex)
@@ -85,7 +85,7 @@ void BluetoothConnectionClass::sendChannel2(int set)
 	try {
 		setValue2 = set;
 		updateSendString();
-		boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
+		//boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
 
 	}
 	catch (boost::system::system_error const& ex)
@@ -121,6 +121,8 @@ void BluetoothConnectionClass::sendChannel12(int set1, int set2)
 // --------------------------------------------------------------------------
 void BluetoothConnectionClass::updateSendString()
 {
+	mtx_.lock();
+
 	if (sendString != NULL)
 	{ 
 		delete[] sendString;
@@ -141,6 +143,24 @@ void BluetoothConnectionClass::updateSendString()
 	sendString = new char[sendStringLength];
 	std::strcpy(sendString, str.c_str());
 	sendString[sendStringLength - 1] = '\n';
+
+	mtx_.unlock();
+}
+
+// --------------------------------------------------------------------------
+// Gibt den Stellwert 1 zurück
+// --------------------------------------------------------------------------
+int BluetoothConnectionClass::getSetValue1()
+{
+	return setValue1;
+}
+
+// --------------------------------------------------------------------------
+// Gibt den Stellwert 2 zurück
+// --------------------------------------------------------------------------
+int BluetoothConnectionClass::getSetValue2()
+{
+	return setValue2;
 }
 
 // --------------------------------------------------------------------------

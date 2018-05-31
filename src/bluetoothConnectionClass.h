@@ -2,6 +2,7 @@
 #include <string>
 #include <boost/asio/serial_port.hpp> 
 #include <boost/asio.hpp> 
+#include <boost/thread/mutex.hpp>
 
 class BluetoothConnectionClass
 {
@@ -16,8 +17,11 @@ public:
 	void sendChannel1(int set);
 	void sendChannel2(int set);
 	void sendChannel12(int set1, int set2);
+	int getSetValue1();
+	int getSetValue2();
 
 private:
+	boost::mutex mtx_;
 	boost::asio::io_service* io;	// IO Service für BT-Verbindung
 	boost::asio::serial_port* port;	// Serieller Port für BT-Verbindung
 	std::string serialPortString;	// Zeichenkette für COM-Port

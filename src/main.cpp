@@ -1,5 +1,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
 #include <boost/thread.hpp>
 
@@ -7,6 +9,7 @@
 #include "commandlineparser.h"
 #include "informationShareClass.h"
 #include "carDetectionClass.h"
+#include "carControlDomiClass.h"
 
 void carDetectionThread ();
 void carControlThread ();
@@ -91,26 +94,48 @@ int main(int argc, const char** argv)
 		return -1;
 	}
 
+	// Bluetooth Funktionalität herstellen
+	BluetoothConnectionClass BLECon;
+	bool BTconnected = false;
+	// Versuche COM-Port zu öffnen, 5 Versuche
+	/*BLECon.disconnect();
+	for (int countOpen = 0; countOpen < 5; countOpen++)
+	{
+		if (BLECon.connect() == 1)
+		{
+			// erfolgreich
+			BTconnected = true;
+			break;
+		}
+	}*/
+
 	// Vorbereiten der Regelung
-	// lane1 + lane2
-	// carControlDomiClass carControlDomi1(infoPackage1, trackDetection.GetTrackpoints(), trackDetection.GetTrackAngles(), BLECon.sendChannel1);
+	CarControlDomiClass carControlDomi1(&infoPackage1, lane1.size(), &lane1, &BLECon, 1, 0.01f);
+	CarControlDomiClass carControlDomi2(&infoPackage2, lane2.size(), &lane2, &BLECon, 2, 0.01f);
 
 	// Threads
-	boost::thread thread1(boost::bind(&CarDetection::loopingThread, &carDetection));
-	// boost::thread thread2(carControlDomi1.loopingThread);
-	// boost::thread thread3(Spur2);
+	boost::thread_group tgroup;
+	tgroup.create_thread(boost::bind(&CarDetection::loopingThread, &carDetection));
+	tgroup.create_thread(boost::bind(&CarControlDomiClass::loopingThread, &carControlDomi1));
+	tgroup.create_thread(boost::bind(&CarControlDomiClass::loopingThread, &carControlDomi2));
 	
 	// Fenster zur anzeige anlegen
 	cv::namedWindow("Result", CV_GUI_NORMAL);
 	cv::resizeWindow("Result", 700, 500);
 	do
 	{
-		cv::imshow("Result", image);
+		cv::Mat imageText;
+		image.copyTo(imageText);
+		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::imshow("Result", imageText);
 	} while (-1 == cv::waitKey(10));
 
 	// Warten bis threads ordnungsgemäß beendet sind
 	carDetection.stopThread();
-	thread1.join();
+	carControlDomi1.stopThread();
+	carControlDomi2.stopThread();
+	tgroup.join_all();
 
 	// Anzeigen
 	//cv::namedWindow("Result", CV_GUI_NORMAL);

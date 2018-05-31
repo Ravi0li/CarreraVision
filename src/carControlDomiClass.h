@@ -2,12 +2,14 @@
 #include "informationShareClass.h"
 #include "bluetoothConnectionClass.h"
 #include <boost/geometry.hpp>
+#include <opencv2/core.hpp>
 
 class CarControlDomiClass
 {
 public:
-	CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, boost::geometry::model::d2::point_xy<float>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance);
+	CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance);
 	void loopingThread();
+	void stopThread();
 	~CarControlDomiClass();
 
 private:
@@ -22,8 +24,9 @@ private:
 	// Für Berechnung zur Laufzeit
 	float correctionFactor;																			// (Empirischer) Korrekturfaktor um Stellsignal runterzuskalieren: Spielraum lassen
 	int* trackVelocity;																				// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke
-	boost::geometry::model::d2::point_xy<float>* cartesianTrackPoints;								// Array mit allen Streckenpunkten in kartesischer Form
+	std::vector<cv::Point2f>* cartesianTrackPoints;													// Array mit allen Streckenpunkten in kartesischer Form
 	float pointDistance;																			// Abstand zwischen zwei Punkten (Trackpoints), Einheit [m]
+	bool stop = false;																				// Stopt den Thread
 
 	// Schnittstelle
 	InformationShareClass* infoPackage;							// Zeiger auf Schnittstellen Klasse
@@ -34,6 +37,6 @@ private:
 	// Methoden
 	int calculateCurrentControlInput(float radiusCurrent);
 	void calculateGlobalControlInput();
-	float distanceBetweenPoints(boost::geometry::model::d2::point_xy<float> point1, boost::geometry::model::d2::point_xy<float> point2);
-	float twiceSignedArea(boost::geometry::model::d2::point_xy<float> point1, boost::geometry::model::d2::point_xy<float> point2, boost::geometry::model::d2::point_xy<float> point3);
+	float distanceBetweenPoints(cv::Point2f point1, cv::Point2f point2);
+	float twiceSignedArea(cv::Point2f point1, cv::Point2f point2, cv::Point2f point3);
 };

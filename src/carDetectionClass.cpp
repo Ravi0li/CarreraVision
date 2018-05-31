@@ -83,7 +83,7 @@ bool CarDetection::setSource(std::string file)
 }
 
 // --------------------------------------------------------------------------
-// Setzt das Ausgabebild
+// Stopt den Thread
 // --------------------------------------------------------------------------
 void CarDetection::stopThread()
 {
@@ -120,7 +120,7 @@ void CarDetection::loopingThread()
 			image.copyTo(*outImage);
 		}
 		// Delay
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	} while(!stop);
 }
 

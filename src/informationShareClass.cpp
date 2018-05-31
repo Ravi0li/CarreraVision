@@ -2,7 +2,7 @@
 
 InformationShareClass::InformationShareClass()
 {
-	carPosition = 0;
+	carPosition = -1;
 	carType = 0;
 	time = 0;
 }
