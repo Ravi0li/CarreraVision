@@ -1,11 +1,21 @@
+#define DEBUG_CAR_CONTROL
+
 #include "carControlDomiClass.h"
 #include <cmath>
 #include <boost/thread.hpp>
 #include <iostream>
+#include <string>
+#include <algorithm>
+
+#ifdef DEBUG_CAR_CONTROL
+#include <fstream>
+#endif
 
 #define M_PI			3.14159265358979323846
 #define MAX_VELOCITY	255
 #define MIN_VELOCITY	0
+
+
 
 // --------------------------------------------------------------------------
 // Kalibrierte Werte festlegen
@@ -17,6 +27,7 @@ CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int
 	actualCarMass =  (float) 0.150;	// kg
 	refRadius = (float) 0.25;		// m
 	refVelocity = 100;				// zwischen 0 und 255
+	brakingFactor = (float) 20.0;	// ohne Einheit
 
 	// Korrekturfaktor bestimmt Verhältnis zum berechneten maximal möglichen Stellsignal
 	correctionFactor = (float) 0.85;
@@ -37,6 +48,7 @@ CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int
 // --------------------------------------------------------------------------
 int CarControlDomiClass::calculateCurrentControlInput(float currentRadius)
 {
+
 	int velocity = 0;	// Stellsignal für Geschwindigkeit
 	float massRatio = refCarMass / actualCarMass;
 
@@ -48,15 +60,105 @@ int CarControlDomiClass::calculateCurrentControlInput(float currentRadius)
 	{
 		// Stellsignal auf Basis der Gesetze der Zentripetalkraft berechnen
 		velocity = correctionFactor * sqrt(massRatio * radiusRation * (float) pow(refVelocity, 2));
-		//velocity = std::min(std::max(MIN_VELOCITY, velocity), MAX_VELOCITY);
+		velocity = std::min(std::max(MIN_VELOCITY, velocity), MAX_VELOCITY);
 	}
 	else
 	{
-		//velocity = MAX_VELOCITY;
+		velocity = MAX_VELOCITY;
 	}
 
-
 	return velocity;
+}
+
+// --------------------------------------------------------------------------
+// Berechnete Stellsignale glätten
+// --------------------------------------------------------------------------
+void CarControlDomiClass::smoothTrackVelocity()
+{
+	const int windowSize = 7;	// sollte ungerade sein
+	int* filteredVelocity = new int[countTrackpoints];
+	int* medianBuffer = new int[windowSize];
+
+	// Array initialisieren
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		filteredVelocity[i] = 0;
+	}
+
+	// Mittelwert berechnen
+	/*for (int i = 0; i < countTrackpoints; i++)
+	{
+		for (int j = 0; j < windowSize; j++)
+		{
+			if ((i < windowSize / 2) && (j < windowSize / 2))
+			{
+				filteredVelocity[i] += trackVelocity[countTrackpoints - windowSize / 2 + j];
+			}
+			else
+			{
+				filteredVelocity[i] += trackVelocity[(i - windowSize / 2 + j) % countTrackpoints];
+			}
+			
+			filteredVelocity[i] /= windowSize;
+		}	
+	}*/
+
+	// besser: Median berechnen, TODO: braucht so noch ewig -> Herolds geilen Algorithmus mit qsort verwenden!
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		for (int j = 0; j < windowSize; j++)
+		{
+			if ((i < windowSize / 2) && (j < windowSize / 2))
+			{
+				medianBuffer[j] = trackVelocity[countTrackpoints - windowSize / 2 + j];
+			}
+			else
+			{
+				medianBuffer[j] = trackVelocity[(i - windowSize / 2 + j) % countTrackpoints];
+			}
+
+		}
+
+		// Median für aktuelles Fenster ermitteln
+		std::sort(medianBuffer, medianBuffer + windowSize);
+
+		filteredVelocity[i] = medianBuffer[windowSize / 2];
+	}
+
+	// Gefiltertes Array kopieren
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		trackVelocity[i] = filteredVelocity[i];
+	}
+
+	delete[] filteredVelocity;
+}
+
+// --------------------------------------------------------------------------
+// Berechnete Stellsignale mit Bremspunkten versehen
+// --------------------------------------------------------------------------
+void CarControlDomiClass::calculateBreakpoints()
+{
+
+
+}
+
+// --------------------------------------------------------------------------
+// Array als XML in Datei speichern zum Debuggen
+// --------------------------------------------------------------------------
+void CarControlDomiClass::outputArrayAsCSV(int* arrayToConvert, int length, std::string label)
+{
+	std::ofstream fileHandle;
+
+	fileHandle.open(label + ".csv");
+
+	// Alle Streckenpunkte als CSV einfügen
+	for (int i = 0; i < length; i++)
+	{
+		fileHandle << arrayToConvert[i] << ";" << "\n";
+	}
+	
+	fileHandle.close();
 }
 
 void CarControlDomiClass::calculateGlobalControlInput()
@@ -114,9 +216,22 @@ void CarControlDomiClass::calculateGlobalControlInput()
 		}
 		
 		// Maximal mögliches Stellsignal berechnen
-		trackVelocity[i] = calculateCurrentControlInput(currentRadius);
+		trackVelocity[i] = calculateCurrentControlInput(currentRadius/1000); // WORKAROUND! TODO!
+	}
 
-	}	
+
+	#ifdef DEBUG_CAR_CONTROL
+		const std::string s1("ohne_glaetten_ohne_bremsen");
+		outputArrayAsCSV(trackVelocity, countTrackpoints, s1);
+	#endif
+
+	// Stellsignale glätten
+	smoothTrackVelocity();
+
+	#ifdef DEBUG_CAR_CONTROL
+		const std::string s2("mit_glaetten_ohne_bremsen");
+		outputArrayAsCSV(trackVelocity, countTrackpoints, s2);
+	#endif
 }
 
 // --------------------------------------------------------------------------
@@ -144,6 +259,7 @@ float CarControlDomiClass::twiceSignedArea(cv::Point2f point1, cv::Point2f point
 void CarControlDomiClass::loopingThread()
 {	
 	int delaySamples = 0;
+	
 	// Maximal mögliche Geschwindigkeit / Stellsignal für jeden Streckenabschnitt berechnen
 	calculateGlobalControlInput();
 
@@ -153,6 +269,7 @@ void CarControlDomiClass::loopingThread()
 		int position = 0;
 
 		//boost::this_thread::sleep
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		/*for (int i = 0; i < countTrackpoints; i++)
 		{
@@ -170,6 +287,7 @@ void CarControlDomiClass::loopingThread()
 			if (position != -1)
 			{
 				bluetoothObject->sendChannel1(trackVelocity[(position + delaySamples) % countTrackpoints]);
+				std::cout << "Sende Kanal 1" << std::endl;
 			}
 		}
 		else if (channel == 2)
@@ -177,6 +295,7 @@ void CarControlDomiClass::loopingThread()
 			if (position != -1)
 			{
 				bluetoothObject->sendChannel2(trackVelocity[(position + delaySamples) % countTrackpoints]);
+				std::cout << "Sende Kanal 2" << std::endl;
 			}
 		}
 	}

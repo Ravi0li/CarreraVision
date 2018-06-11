@@ -2,6 +2,7 @@
 #include "informationShareClass.h"
 #include "bluetoothConnectionClass.h"
 #include <opencv2/core.hpp>
+#include <string>
 
 class CarControlDomiClass
 {
@@ -19,6 +20,7 @@ private:
 	float actualCarMass;	// Masse des aktuellen Autos, Einheit [kg]
 	float refRadius;		// Radius der kalibrierten Referenzkurve, Einheit [m]
 	int refVelocity;		// Geschwindigkeit (= Stellsignal) der Referenzkurve, bei der das Auto gerade nicht aus der Kurve geflogen ist
+	float brakingFactor;	// Bestimmt die maximal mögliche Bremsstärke des Autos
 	
 	// Für Berechnung zur Laufzeit
 	float correctionFactor;																			// (Empirischer) Korrekturfaktor um Stellsignal runterzuskalieren: Spielraum lassen
@@ -38,4 +40,7 @@ private:
 	void calculateGlobalControlInput();
 	float distanceBetweenPoints(cv::Point2f point1, cv::Point2f point2);
 	float twiceSignedArea(cv::Point2f point1, cv::Point2f point2, cv::Point2f point3);
+	void smoothTrackVelocity();
+	void calculateBreakpoints();
+	void outputArrayAsCSV(int* arrayToConvert, int length, std::string label);
 };

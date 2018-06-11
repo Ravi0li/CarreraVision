@@ -83,8 +83,8 @@ int main(int argc, const char** argv)
 	trackDetection.getPointLines(&lane1, &lane2);
 		
 	// Bluetoothcommunication vorbereiten
-	// bluetoothConnectionClass BLECon;
-	// BLECon.connect();
+	 //BluetoothConnectionClass BLECon;
+	 //BLECon.connect();
 
 	// Vorbereiten der Streckenauswertung
 	InformationShareClass infoPackage1, infoPackage2;
@@ -102,19 +102,21 @@ int main(int argc, const char** argv)
 	BluetoothConnectionClass BLECon;
 	bool BTconnected = false;
 	// Versuche COM-Port zu öffnen, 5 Versuche
-	/*BLECon.disconnect();
+	BLECon.disconnect();
 	for (int countOpen = 0; countOpen < 5; countOpen++)
 	{
 		if (BLECon.connect() == 1)
 		{
+			std::cout << "Bluetooth Verbindung hergestellt." << std::endl;
+
 			// erfolgreich
 			BTconnected = true;
 			break;
 		}
-	}*/
+	}
 
 	// Vorbereiten der Regelung
-	CarControlDomiClass carControlDomi1(&infoPackage1, lane1.size(), &lane1, &BLECon, 1, 0.01f);
+	CarControlDomiClass carControlDomi1(&infoPackage1, lane1.size(), &lane1, &BLECon, 1, 0.01f); //TODO!
 	CarControlDomiClass carControlDomi2(&infoPackage2, lane2.size(), &lane2, &BLECon, 2, 0.01f);
 
 	// Threads
