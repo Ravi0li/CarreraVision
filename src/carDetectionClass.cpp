@@ -38,6 +38,12 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 	car2 = laneShare2;
 	car1->SetPosition(-1);
 	car2->SetPosition(-1);
+	// Auswertepattern setzen
+	analysePattern.push_back(cv::Point2f(0,  0));
+	analysePattern.push_back(cv::Point2f(1,  0));
+	analysePattern.push_back(cv::Point2f(-1, 0));
+	analysePattern.push_back(cv::Point2f(0,  1));
+	analysePattern.push_back(cv::Point2f(0, -1));
 }
 
 // --------------------------------------------------------------------------
@@ -127,32 +133,35 @@ void CarDetection::loopingThread()
 // --------------------------------------------------------------------------
 // Referenzpunkt einlesen
 // --------------------------------------------------------------------------
-void CarDetection::getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3b> *mid)
+void CarDetection::getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid)
 {
 	for (int i = 0; i < lane->size(); i++)
-		(*mid)[i] = getPixel(image, (*lane)[i]);
+	{
+		(*mid)[i] = cv::Vec3i(0,0,0);
+		cv::Vec3i p = getAllPixel(image, (*lane)[i]);
+	}
 }
 
 // --------------------------------------------------------------------------
 // Prüfen welche Punkte getriggert sind
 // --------------------------------------------------------------------------
-void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3b> *mid, std::vector<bool> *trig)
+void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig)
 {
 	// zu Triggernder Grenzwert
 	int maxTrig = 50;
 	for (int i = 0; i < lane->size(); i++)
 	{
 		cv::Point2f pos((*lane)[i].x * 0.5f, (*lane)[i].y * 0.5f);
-		cv::Vec3d p = getPixel(*image, (*lane)[i]);
+		cv::Vec3i p = getAllPixel(*image, (*lane)[i]);
 		int r = (int)abs(p[0] - (*mid)[i][0]);
 		int g = (int)abs(p[1] - (*mid)[i][1]);
 		int b = (int)abs(p[2] - (*mid)[i][2]);
-		int dif = r + g + b;
+		int dif = (r + g + b) / analysePattern.size();
 		// Prüfen ob Punkt getriggert ist
 		if (dif > maxTrig)
 		{
 			// Langsames angleichen
-			(*mid)[i] = (*mid)[i] * 0.95 + getPixel(*image, (*lane)[i]) * 0.05;
+			(*mid)[i] = (*mid)[i] * 0.95 + getAllPixel(*image, (*lane)[i]) * 0.05;
 			// Trigger merken
 			(*trig)[i] = true;
 			// Punkt einzeichnen
@@ -161,7 +170,7 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 		else
 		{
 			// Langsames angleichen
-			(*mid)[i] = (*mid)[i] * 0.7 + getPixel(*image, (*lane)[i]) * 0.3;
+			(*mid)[i] = (*mid)[i] * 0.7 + getAllPixel(*image, (*lane)[i]) * 0.3;
 			// Punkt einzeichnen
 			cv::circle(*image, pos, 2, cv::Scalar(255, 255, 255), 2);
 		}
@@ -217,7 +226,18 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 // --------------------------------------------------------------------------
 // Pixel auslesen
 // --------------------------------------------------------------------------
-cv::Vec3b CarDetection::getPixel(cv::Mat image, cv::Point2f p)
+cv::Vec3i CarDetection::getPixel(cv::Mat image, cv::Point2f p, cv::Point2f offset)
 {
-	return image.at<cv::Vec3b>((int)(p.y * 0.5), (int)(p.x * 0.5));
+	return image.at<cv::Vec3b>((int)(p.y * 0.5) + offset.x, (int)(p.x * 0.5) + offset.y);
+}
+
+// --------------------------------------------------------------------------
+// Pixel auslesen mit gesammten Pattern
+// --------------------------------------------------------------------------
+cv::Vec3i CarDetection::getAllPixel(cv::Mat image, cv::Point2f p)
+{
+	cv::Vec3i res(0, 0, 0);
+	for (cv::Point2f &offset : analysePattern)
+		res += getPixel(image, p, offset);
+	return res;
 }

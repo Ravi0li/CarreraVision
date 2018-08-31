@@ -139,7 +139,7 @@ void BluetoothConnectionClass::updateSendString()
 	std::string str = stream.str();
 	
 	// Konvertiere String Objekt zu char*
-	sendStringLength = str.length() + 1;
+	sendStringLength = (int)str.length() + 1;
 	sendString = new char[sendStringLength];
 	std::strcpy(sendString, str.c_str());
 	sendString[sendStringLength - 1] = '\n';

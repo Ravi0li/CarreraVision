@@ -77,7 +77,7 @@ int main(int argc, const char** argv)
 	TrackDetection trackDetection(para["track_detection"]);
 	trackDetection.setDebugWin(parser.get<bool>("debugwin"));
 	trackDetection.setPicture(image);
-	trackDetection.calculate(0.20f);
+	trackDetection.calculate(0.10f);
 	image = trackDetection.getResultPicture();
 	std::vector<cv::Point2f> lane1, lane2;
 	trackDetection.getPointLines(&lane1, &lane2);
@@ -116,8 +116,8 @@ int main(int argc, const char** argv)
 	}
 
 	// Vorbereiten der Regelung
-	CarControlDomiClass carControlDomi1(&infoPackage1, lane1.size(), &lane1, &BLECon, 1, 0.01f); //TODO!
-	CarControlDomiClass carControlDomi2(&infoPackage2, lane2.size(), &lane2, &BLECon, 2, 0.01f);
+	CarControlDomiClass carControlDomi1(&infoPackage1, (int)lane1.size(), &lane1, &BLECon, 1, 0.01f); //TODO!
+	CarControlDomiClass carControlDomi2(&infoPackage2, (int)lane2.size(), &lane2, &BLECon, 2, 0.01f);
 
 	// Threads
 	boost::thread_group tgroup;
