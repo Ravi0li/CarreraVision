@@ -442,7 +442,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLinesCurved(std::
 		float lastAngle = -99;
 		if (line.size() > 1)
 		{
-			int la = line.size() - 1;
+			int la = (int)line.size() - 1;
 			float xDiff = line[la].x - line[la-1].x;
 			float yDiff = line[la].y - line[la - 1].y;
 			lastAngle = atan2(yDiff, xDiff) + (float)M_PI;
@@ -490,7 +490,7 @@ std::vector<std::vector<cv::Point2f>> TrackDetection::calSearchLinesCurved(std::
 					// Abstands und Winkelberechnungen für letzten Punkt der Linie
 					if (it->size() > 1)
 					{
-						int la = it->size() - 1;
+						int la = (int)it->size() - 1;
 						bool samePoint = ((*it)[la].x == line.at(line.size() - 1).x) && ((*it)[la].y == line.at(line.size() - 1).y);
 						float xDiff = (*it)[la].x - line.at(line.size() - 1).x;
 						float yDiff = (*it)[la].y - line.at(line.size() - 1).y;
@@ -942,6 +942,7 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 		int operator()(std::pair<cv::Point2f, cv::Point2f> a)
 		{
 			return (int)((int)(pow(a.second.x - a.first.x, 2) + pow(a.second.y - a.first.y, 2)) / pow(5, 2));
+			// Immer 5 Pixel zusammen ziehen (Da ohne Wurzel zum Quadrat)
 		}
 	} getDis;
 
@@ -977,8 +978,8 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 	}
 	// Pixel pro Meter berechnen und Abstand zwischen zwei Punkten am ende
 	float trackWidth = 0.25;
-	float pixlePerMeter = sqrt((float)maxPos) / trackWidth;
-	pixelBetweenPoints = pointDistanceInMeter * pixlePerMeter;
+	float pixlePerMeter = sqrt((float)maxPos*pow(5,2)) / trackWidth;
+	pixelBetweenPoints = (int)(pointDistanceInMeter * pixlePerMeter);
 	std::cout << "Abstand zwischen den Auswertepunkten: " << pixelBetweenPoints << std::endl;
 
 	// Infofenster zum Debuggen
