@@ -113,6 +113,7 @@ void CarDetection::loopingThread()
 				getRefValues(image, &lane1, &mid1);
 				getRefValues(image, &lane2, &mid2);
 				firstRound = false;
+				std::cout << "Referenzpunkte neu berechnet." << std::endl;
 			}
 			// Auswerten welche Pixel getriggert sind
 			std::vector<bool> trig1(lane1.size(), false);
@@ -125,7 +126,7 @@ void CarDetection::loopingThread()
 			// Ergebniss anzeigen
 			image.copyTo(*outImage);
 		}
-		// Delay
+		// Delay <- Bei echtzeit entfernen!!!
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	} while(!stop);
 }
@@ -136,10 +137,7 @@ void CarDetection::loopingThread()
 void CarDetection::getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid)
 {
 	for (int i = 0; i < lane->size(); i++)
-	{
-		(*mid)[i] = cv::Vec3i(0,0,0);
-		cv::Vec3i p = getAllPixel(image, (*lane)[i]);
-	}
+		(*mid)[i] = getAllPixel(image, (*lane)[i]);
 }
 
 // --------------------------------------------------------------------------
@@ -161,7 +159,7 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 		if (dif > maxTrig)
 		{
 			// Langsames angleichen
-			(*mid)[i] = (*mid)[i] * 0.95 + getAllPixel(*image, (*lane)[i]) * 0.05;
+			//(*mid)[i] = (*mid)[i] * 0.95 + getAllPixel(*image, (*lane)[i]) * 0.05;
 			// Trigger merken
 			(*trig)[i] = true;
 			// Punkt einzeichnen
@@ -240,4 +238,12 @@ cv::Vec3i CarDetection::getAllPixel(cv::Mat image, cv::Point2f p)
 	for (cv::Point2f &offset : analysePattern)
 		res += getPixel(image, p, offset);
 	return res;
+}
+
+// --------------------------------------------------------------------------
+// Referenzwerte zurücksetzen
+// --------------------------------------------------------------------------
+void CarDetection::resetRefValue()
+{
+	firstRound = true;
 }

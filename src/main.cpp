@@ -11,8 +11,7 @@
 #include "carDetectionClass.h"
 #include "carControlDomiClass.h"
 
-void carDetectionThread ();
-void carControlThread ();
+static void onMouse(int event, int x, int y, int, void*);
 
 int main(int argc, const char** argv)
 {
@@ -128,12 +127,16 @@ int main(int argc, const char** argv)
 	// Fenster zur anzeige anlegen
 	cv::namedWindow("Result", CV_GUI_NORMAL);
 	cv::resizeWindow("Result", 700, 500);
+	cv::setMouseCallback("Result", onMouse, &carDetection);
 	do
 	{
 		cv::Mat imageText;
 		image.copyTo(imageText);
 		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Kallibrieren", cv::Point(20, 100), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung 1: On-1", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung 2: On-2", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
 	} while (-1 == cv::waitKey(10));
 
@@ -143,21 +146,27 @@ int main(int argc, const char** argv)
 	carControlDomi2.stopThread();
 	tgroup.join_all();
 
-	// Anzeigen
-	//cv::namedWindow("Result", CV_GUI_NORMAL);
-	//cv::resizeWindow("Result", 700, 500);
-	//cv::imshow("Result", image);
-	//cv::waitKey(0);
-
 	return 0;
 }
 
-void carDetectionThread ()
+static void onMouse(int event, int x, int y, int, void* param)
 {
+	if (event != cv::EVENT_LBUTTONDOWN)
+		return;
 
+	// Auf Klicks reagieren
+	CarDetection* carDetection = (CarDetection*)(param);
+	if (x > 20 && x < 200)
+	{
+		// Referenzpunkte neu berechnen
+		if (y > 80 && y < 100)
+			carDetection->resetRefValue();
+		// Kanal 1 schalten
+		if (y > 110 && y < 130)
+			;
+		// Kanal 2 schalten
+		if (y > 140 && y < 160)
+			;
+	}
 }
 
-void carControlThread ()
-{
-
-}

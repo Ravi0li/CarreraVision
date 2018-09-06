@@ -14,6 +14,7 @@ public:
 	void setOutputImage(cv::Mat *outImageL);
 	void loopingThread();
 	void stopThread();
+	void resetRefValue();
 
 private:
 	void getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid);
