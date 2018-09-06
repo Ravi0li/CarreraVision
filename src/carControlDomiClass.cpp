@@ -1,6 +1,7 @@
 #define DEBUG_CAR_CONTROL
 
 #include "carControlDomiClass.h"
+#include <opencv2/imgproc/imgproc.hpp>
 #include <cmath>
 #include <boost/thread.hpp>
 #include <iostream>
@@ -14,8 +15,6 @@
 #define M_PI			3.14159265358979323846
 #define MAX_VELOCITY	255
 #define MIN_VELOCITY	0
-
-
 
 // --------------------------------------------------------------------------
 // Kalibrierte Werte festlegen
@@ -39,8 +38,14 @@ CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int
 	this->bluetoothObject = bluetoothObject;
 	this->channel = channel;
 	this->pointDistance = pointDistance;
+	this->minimumVelocity = MIN_VELOCITY;
+	this->direction = 1;																					
 
-	trackVelocity = new int[countTrackpoints];
+	trackVelocityNoBraking = new int[countTrackpoints];
+	trackVelocityDirection1 = new int[countTrackpoints];
+	trackVelocityDirection2 = new int[countTrackpoints];
+
+	trackVelocityDirectionDrive = trackVelocityDirection1;
 }
 
 // --------------------------------------------------------------------------
@@ -85,24 +90,6 @@ void CarControlDomiClass::smoothTrackVelocity()
 		filteredVelocity[i] = 0;
 	}
 
-	// Mittelwert berechnen
-	/*for (int i = 0; i < countTrackpoints; i++)
-	{
-		for (int j = 0; j < windowSize; j++)
-		{
-			if ((i < windowSize / 2) && (j < windowSize / 2))
-			{
-				filteredVelocity[i] += trackVelocity[countTrackpoints - windowSize / 2 + j];
-			}
-			else
-			{
-				filteredVelocity[i] += trackVelocity[(i - windowSize / 2 + j) % countTrackpoints];
-			}
-			
-			filteredVelocity[i] /= windowSize;
-		}	
-	}*/
-
 	// besser: Median berechnen, TODO: braucht so noch ewig -> Herolds geilen Algorithmus mit qsort verwenden!
 	for (int i = 0; i < countTrackpoints; i++)
 	{
@@ -110,11 +97,11 @@ void CarControlDomiClass::smoothTrackVelocity()
 		{
 			if ((i < windowSize / 2) && (j < windowSize / 2))
 			{
-				medianBuffer[j] = trackVelocity[countTrackpoints - windowSize / 2 + j];
+				medianBuffer[j] = trackVelocityNoBraking[countTrackpoints - windowSize / 2 + j];
 			}
 			else
 			{
-				medianBuffer[j] = trackVelocity[(i - windowSize / 2 + j) % countTrackpoints];
+				medianBuffer[j] = trackVelocityNoBraking[(i - windowSize / 2 + j) % countTrackpoints];
 			}
 
 		}
@@ -128,7 +115,7 @@ void CarControlDomiClass::smoothTrackVelocity()
 	// Gefiltertes Array kopieren
 	for (int i = 0; i < countTrackpoints; i++)
 	{
-		trackVelocity[i] = filteredVelocity[i];
+		trackVelocityNoBraking[i] = filteredVelocity[i];
 	}
 
 	delete[] filteredVelocity;
@@ -139,8 +126,66 @@ void CarControlDomiClass::smoothTrackVelocity()
 // --------------------------------------------------------------------------
 void CarControlDomiClass::calculateBreakpoints()
 {
+	/*cv::Mat src, dst1, dst2;
+	cv::Mat kernel;
+	cv::Point anchor;
 
+	// Stellsignale laden
+	src = cv::Mat::zeros(1, countTrackpoints, CV_8U);
+	dst1 = cv::Mat::zeros(1, countTrackpoints, CV_8U);
+	dst2 = cv::Mat::zeros(1, countTrackpoints, CV_8U);
 
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		src.at<uchar>(cv::Point(i, 0)) = (uchar) trackVelocityNoBraking[i];
+	}
+
+	// Argumente für Filterung
+	anchor = cv::Point(-1, -1);		// Mittelpunkt des Filterkernels verwenden								
+
+	// Filtermasken festlegen und filtern
+	kernel = (cv::Mat_<double>(1, 7) << 0, 0, 0, 0.33, 0.33, 0.33, 0.33);
+	filter2D(src, dst1, -1, kernel, anchor, 0);
+	//filter2D(src, dst1, -1, kernel, anchor, 0, cv::BORDER_WRAP);
+
+	kernel = (cv::Mat_<double>(1, 7) << 0.33, 0.33, 0.33, 0.33, 0, 0, 0);
+	//filter2D(src, dst2, -1, kernel, anchor, 0, cv::BORDER_WRAP);
+
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		trackVelocityDirection1[i] = dst1.at<uchar>(i);
+		trackVelocityDirection2[i] = dst2.at<uchar>(i);
+	}*/
+
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		int newVal = 0, useVal;
+		useVal = trackVelocityNoBraking[i];
+		newVal = trackVelocityNoBraking[(i+1) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		newVal = trackVelocityNoBraking[(i+2) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		trackVelocityDirection1[i] = useVal;
+	}
+
+	for (int i = 2; i < countTrackpoints+2; i++)
+	{
+		int newVal = 0, useVal;
+		useVal = trackVelocityNoBraking[i % countTrackpoints];
+		newVal = trackVelocityNoBraking[(i - 1) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		newVal = trackVelocityNoBraking[(i - 2) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		trackVelocityDirection2[i] = useVal;
+	}
+
+	#ifdef DEBUG_CAR_CONTROL
+		const std::string s1("mit_glaetten_mit_bremsen1");
+		outputArrayAsCSV(trackVelocityDirection1, countTrackpoints, s1);
+
+		const std::string s2("mit_glaetten_mit_bremsen2");
+		outputArrayAsCSV(trackVelocityDirection2, countTrackpoints, s2);
+	#endif
 }
 
 // --------------------------------------------------------------------------
@@ -161,9 +206,31 @@ void CarControlDomiClass::outputArrayAsCSV(int* arrayToConvert, int length, std:
 	fileHandle.close();
 }
 
+// --------------------------------------------------------------------------
+// Kleinstes Stellsignal der Strecke berechnen. Wird verwendet, wenn 
+// keine Position übergeben wird. Das Array mit den Stellsignalen sollte 
+// vorher bereits gefiltert sein.
+// --------------------------------------------------------------------------
+void CarControlDomiClass::calculateMinmumControlInput()
+{
+	int min = MAX_VELOCITY;
+
+	for (int i = 0; i < countTrackpoints; i++)
+	{
+		if (trackVelocityNoBraking[i] < min)
+		{
+			min = trackVelocityNoBraking[i];
+		}
+	}
+
+	minimumVelocity = min;
+}
+
+// --------------------------------------------------------------------------
+// Aktuellen Kurvenradius auf Basis der Menger Krümmung berechnen
+// --------------------------------------------------------------------------
 void CarControlDomiClass::calculateGlobalControlInput()
 {
-	// Aktuellen Kurvenradius auf Basis der Menger Krümmung berechnen
 	// Hierfür werden jeweils 3 benachbarte Punkte betrachtet
 	float currentRadius = 0.0;
 
@@ -174,9 +241,9 @@ void CarControlDomiClass::calculateGlobalControlInput()
 		if (i == 0)
 		{
 			// Erster Streckenpunkt
-			diff1 = distanceBetweenPoints((*cartesianTrackPoints)[countTrackpoints - 1], (*cartesianTrackPoints)[0]);	// Abstand Punkt1 - Punkt2
-			diff2 = distanceBetweenPoints((*cartesianTrackPoints)[0], (*cartesianTrackPoints)[1]);					// Abstand Punkt2 - Punkt3
-			diff3 = distanceBetweenPoints((*cartesianTrackPoints)[1], (*cartesianTrackPoints)[countTrackpoints - 1]);	// Abstand Punkt3 - Punkt1
+			diff1 = distanceBetweenPoints((*cartesianTrackPoints)[countTrackpoints - 1], (*cartesianTrackPoints)[0]);		// Abstand Punkt1 - Punkt2
+			diff2 = distanceBetweenPoints((*cartesianTrackPoints)[0], (*cartesianTrackPoints)[1]);							// Abstand Punkt2 - Punkt3
+			diff3 = distanceBetweenPoints((*cartesianTrackPoints)[1], (*cartesianTrackPoints)[countTrackpoints - 1]);		// Abstand Punkt3 - Punkt1
 
 			// Berechne vierfache Dreiecksfläche 
 			area4 = 2.0 * abs(twiceSignedArea((*cartesianTrackPoints)[countTrackpoints - 1], (*cartesianTrackPoints)[0], (*cartesianTrackPoints)[1]));
@@ -216,22 +283,32 @@ void CarControlDomiClass::calculateGlobalControlInput()
 		}
 		
 		// Maximal mögliches Stellsignal berechnen
-		trackVelocity[i] = calculateCurrentControlInput(currentRadius/1000); // WORKAROUND! TODO!
+		trackVelocityNoBraking[i] = calculateCurrentControlInput(currentRadius/1000);
 	}
 
 
 	#ifdef DEBUG_CAR_CONTROL
 		const std::string s1("ohne_glaetten_ohne_bremsen");
-		outputArrayAsCSV(trackVelocity, countTrackpoints, s1);
+		outputArrayAsCSV(trackVelocityNoBraking, countTrackpoints, s1);
 	#endif
 
 	// Stellsignale glätten
 	smoothTrackVelocity();
 
+	// Minimum berechnen als "Standardwert", falls keine Position übergeben wird
+	calculateMinmumControlInput();
+
+	// Stellsignale mit Bremspunkten berechnen
+	calculateBreakpoints();
+
 	#ifdef DEBUG_CAR_CONTROL
 		const std::string s2("mit_glaetten_ohne_bremsen");
-		outputArrayAsCSV(trackVelocity, countTrackpoints, s2);
+		outputArrayAsCSV(trackVelocityNoBraking, countTrackpoints, s2);
 	#endif
+
+	infoPackage->lock();
+	infoPackage->SetTrackVelocity(trackVelocityDirectionDrive);
+	infoPackage->unlock();
 }
 
 // --------------------------------------------------------------------------
@@ -286,19 +363,37 @@ void CarControlDomiClass::loopingThread()
 		{
 			if (position != -1)
 			{
-				bluetoothObject->sendChannel1(trackVelocity[(position + delaySamples) % countTrackpoints]);
-				std::cout << "Sende Kanal 1" << std::endl;
+				bluetoothObject->sendChannel1(direction * trackVelocityDirectionDrive[(position + delaySamples) % countTrackpoints]);
 			}
+			else
+			{
+				bluetoothObject->sendChannel1(direction * minimumVelocity);
+			}
+
+			std::cout << "Sende Kanal 1" << std::endl;
 		}
 		else if (channel == 2)
 		{
 			if (position != -1)
 			{
-				bluetoothObject->sendChannel2(trackVelocity[(position + delaySamples) % countTrackpoints]);
-				std::cout << "Sende Kanal 2" << std::endl;
+				bluetoothObject->sendChannel2(direction * trackVelocityDirectionDrive[(position + delaySamples) % countTrackpoints]);
 			}
+			else
+			{
+				bluetoothObject->sendChannel2(direction * minimumVelocity);
+			}
+
+			std::cout << "Sende Kanal 2" << std::endl;
 		}
 	}
+}
+
+// --------------------------------------------------------------------------
+// Umschalten der Richtung, Abfolge der Werte: -1 -> 0 -> 1 -> -1 ...
+// --------------------------------------------------------------------------
+void CarControlDomiClass::toggleDirection()
+{
+	direction = ((direction + 2) % 3) - 1;
 }
 
 // --------------------------------------------------------------------------
@@ -314,7 +409,28 @@ void CarControlDomiClass::stopThread()
 // --------------------------------------------------------------------------
 CarControlDomiClass::~CarControlDomiClass()
 {
-	delete[] trackVelocity;
+	delete[] trackVelocityNoBraking;
+	//delete[] trackVelocityDirection1;
+	//delete[] trackVelocityDirection2;
+}
+
+// --------------------------------------------------------------------------
+// 
+// --------------------------------------------------------------------------
+void CarControlDomiClass::ChangeVelocityDirection()
+{
+	if (trackVelocityDirectionDrive == trackVelocityDirection1)
+	{
+		trackVelocityDirectionDrive = trackVelocityDirection2;
+	}
+	else if (trackVelocityDirectionDrive == trackVelocityDirection2)
+	{
+		trackVelocityDirectionDrive = trackVelocityDirection1;
+	}
+
+	infoPackage->lock();
+	infoPackage->SetTrackVelocity(trackVelocityDirectionDrive);
+	infoPackage->unlock();
 }
 
 

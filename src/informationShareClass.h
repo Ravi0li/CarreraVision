@@ -8,6 +8,7 @@ private:
 	int carPosition;
 	int carType;
 	long time;
+	int* trackVelocity;
 public:
 	InformationShareClass();
 	void lock() ;
@@ -15,7 +16,9 @@ public:
 	void SetPosition(int carPosition);
 	void SetType(int carType);
 	void SetTime(int time);
+	void SetTrackVelocity(int* trackVelocity);
 	int GetPosition();
 	int GetType();
 	int GetTime();
+	int* GetTrackVelocity();
 };

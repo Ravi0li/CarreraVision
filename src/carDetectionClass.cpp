@@ -19,6 +19,8 @@ CarDetection::CarDetection(std::vector<cv::Point2f> lane1s, std::vector<cv::Poin
 	firstRound = true;
 	mid1.insert(mid1.begin(), lane1.size(), cv::Vec3b());
 	mid2.insert(mid2.begin(), lane2.size(), cv::Vec3b());
+	// Zeichenmodus
+	paintMode = 1;
 }
 
 // --------------------------------------------------------------------------
@@ -44,6 +46,10 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 	analysePattern.push_back(cv::Point2f(-1, 0));
 	analysePattern.push_back(cv::Point2f(0,  1));
 	analysePattern.push_back(cv::Point2f(0, -1));
+	analysePattern.push_back(cv::Point2f(3,  0));
+	analysePattern.push_back(cv::Point2f(-3, 0));
+	analysePattern.push_back(cv::Point2f(0,  3));
+	analysePattern.push_back(cv::Point2f(0, -3));
 }
 
 // --------------------------------------------------------------------------
@@ -52,6 +58,17 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 void CarDetection::setOutputImage(cv::Mat *outImageL)
 {
 	outImage = outImageL;
+}
+
+// --------------------------------------------------------------------------
+// Ändert den Zeichenmodus
+// --------------------------------------------------------------------------
+void CarDetection::ChangePaintMode()
+{
+	if (paintMode == 1)
+		paintMode = 2;
+	else if (paintMode == 2)
+		paintMode = 1;
 }
 
 // --------------------------------------------------------------------------
@@ -123,6 +140,12 @@ void CarDetection::loopingThread()
 			// Auswerten der Triggerergebnisse
 			getTrigerResult(&image, &lane1, &trig1, car1);
 			getTrigerResult(&image, &lane2, &trig2, car2);
+			// Zeichnet Beschleunigungspunkte
+			if (paintMode == 2)
+			{
+				paintTrackVelocity(&image, &lane1, car1);
+				paintTrackVelocity(&image, &lane2, car2);
+			}
 			// Ergebniss anzeigen
 			image.copyTo(*outImage);
 		}
@@ -146,7 +169,7 @@ void CarDetection::getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, s
 void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig)
 {
 	// zu Triggernder Grenzwert
-	int maxTrig = 50;
+	int maxTrig = 100;
 	for (int i = 0; i < lane->size(); i++)
 	{
 		cv::Point2f pos((*lane)[i].x * 0.5f, (*lane)[i].y * 0.5f);
@@ -163,14 +186,16 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 			// Trigger merken
 			(*trig)[i] = true;
 			// Punkt einzeichnen
-			cv::circle(*image, pos, 2, cv::Scalar(255, 0, 0), 2);
+			if (paintMode == 1)
+				cv::circle(*image, pos, 2, cv::Scalar(255, 0, 0), 2);
 		}
 		else
 		{
 			// Langsames angleichen
 			(*mid)[i] = (*mid)[i] * 0.7 + getAllPixel(*image, (*lane)[i]) * 0.3;
 			// Punkt einzeichnen
-			cv::circle(*image, pos, 2, cv::Scalar(255, 255, 255), 2);
+			if (paintMode == 1)
+				cv::circle(*image, pos, 2, cv::Scalar(255, 255, 255), 2);
 		}
 	}
 }
@@ -190,7 +215,7 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 	// Autoposition neu finden
 	if (car->GetPosition() == -1)
 	{
-		if (truePos.size() < 3 && truePos.size() > 1 && (truePos.front() - truePos.back()) < 5)
+		if (truePos.size() <= 3 && truePos.size() >= 1 && (truePos.front() - truePos.back()) < 5)
 			car->SetPosition((int)std::accumulate(truePos.begin(), truePos.end(), 0) / (int)truePos.size());
 	}
 	// Autoposition mitführen
@@ -214,7 +239,7 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 			car->SetPosition((int)std::accumulate(usedPos.begin(), usedPos.end(), 0) / (int)usedPos.size());
 	}
 	// Einzeichnen des Autos
-	if (car->GetPosition() != -1)
+	if (car->GetPosition() != -1 && paintMode == 1)
 	{
 		cv::Point2f pos((*lane)[car->GetPosition()].x * 0.5f, (*lane)[car->GetPosition()].y * 0.5f);
 		cv::circle(*image, pos, 5, cv::Scalar(0, 0, 255), 5);
@@ -246,4 +271,30 @@ cv::Vec3i CarDetection::getAllPixel(cv::Mat image, cv::Point2f p)
 void CarDetection::resetRefValue()
 {
 	firstRound = true;
+}
+
+// --------------------------------------------------------------------------
+// Referenzwerte zurücksetzen
+// --------------------------------------------------------------------------
+void CarDetection::paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *lane, InformationShareClass *car)
+{
+	car->lock();
+	int* values = car->GetTrackVelocity();
+	car->unlock();
+	for (int i = 0; i < lane->size(); i++)
+	{
+		cv::Point2f pos((*lane)[i].x * 0.5f, (*lane)[i].y * 0.5f);
+		cv::circle(*image, pos, 2, hsvScalar(0, values[i], 255), 2);
+	}
+}
+
+// --------------------------------------------------------------------------
+// gibt einen Scalar wert zurück anhand von RGB Werten
+// --------------------------------------------------------------------------
+cv::Scalar CarDetection::hsvScalar(double h, double s, double v)
+{
+	cv::Mat rgb;
+	cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(h, s, v));
+	cv::cvtColor(hsv, rgb, CV_HSV2RGB);
+	return cv::Scalar((int)rgb.at<cv::Vec3b>(0, 0)[0], (int)rgb.at<cv::Vec3b>(0, 0)[1], (int)rgb.at<cv::Vec3b>(0, 0)[2]);
 }

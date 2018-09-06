@@ -11,6 +11,8 @@ public:
 	void loopingThread();
 	void stopThread();
 	~CarControlDomiClass();
+	void toggleDirection();
+	void ChangeVelocityDirection();
 
 private:
 
@@ -24,10 +26,15 @@ private:
 	
 	// Für Berechnung zur Laufzeit
 	float correctionFactor;																			// (Empirischer) Korrekturfaktor um Stellsignal runterzuskalieren: Spielraum lassen
-	int* trackVelocity;																				// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke
+	int* trackVelocityNoBraking;																	// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke ohne Bremsalgorithmus
+	int* trackVelocityDirection1;																			// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 1)
+	int* trackVelocityDirection2;																		// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 2)
+	int* trackVelocityDirectionDrive;
 	std::vector<cv::Point2f>* cartesianTrackPoints;													// Array mit allen Streckenpunkten in kartesischer Form
 	float pointDistance;																			// Abstand zwischen zwei Punkten (Trackpoints), Einheit [m]
 	bool stop = false;																				// Stopt den Thread
+	int minimumVelocity;																			// Kleinstes Stellsignal der Strecke
+	int direction;																					// Richtung: Kann drei Werte annehmen: 1, 0 , -1
 
 	// Schnittstelle
 	InformationShareClass* infoPackage;							// Zeiger auf Schnittstellen Klasse
@@ -43,4 +50,5 @@ private:
 	void smoothTrackVelocity();
 	void calculateBreakpoints();
 	void outputArrayAsCSV(int* arrayToConvert, int length, std::string label);
+	void calculateMinmumControlInput();
 };

@@ -13,6 +13,14 @@
 
 static void onMouse(int event, int x, int y, int, void*);
 
+struct ParamOnMouse
+{
+public:
+	CarDetection* carDetection;
+	CarControlDomiClass* carControlDomi1;
+	CarControlDomiClass* carControlDomi2;
+};
+
 int main(int argc, const char** argv)
 {
 	// Übergabeparameter auswerten
@@ -115,8 +123,8 @@ int main(int argc, const char** argv)
 	}
 
 	// Vorbereiten der Regelung
-	CarControlDomiClass carControlDomi1(&infoPackage1, (int)lane1.size(), &lane1, &BLECon, 1, 0.01f); //TODO!
-	CarControlDomiClass carControlDomi2(&infoPackage2, (int)lane2.size(), &lane2, &BLECon, 2, 0.01f);
+	CarControlDomiClass carControlDomi1(&infoPackage1, (int)lane1.size(), &lane1, &BLECon, 1, 0.10f);
+	CarControlDomiClass carControlDomi2(&infoPackage2, (int)lane2.size(), &lane2, &BLECon, 2, 0.10f);
 
 	// Threads
 	boost::thread_group tgroup;
@@ -127,7 +135,11 @@ int main(int argc, const char** argv)
 	// Fenster zur anzeige anlegen
 	cv::namedWindow("Result", CV_GUI_NORMAL);
 	cv::resizeWindow("Result", 700, 500);
-	cv::setMouseCallback("Result", onMouse, &carDetection);
+	ParamOnMouse param;
+	param.carDetection = &carDetection;
+	param.carControlDomi1 = &carControlDomi1;
+	param.carControlDomi2 = &carControlDomi2;
+	cv::setMouseCallback("Result", onMouse, &param);
 	do
 	{
 		cv::Mat imageText;
@@ -135,8 +147,10 @@ int main(int argc, const char** argv)
 		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Kallibrieren", cv::Point(20, 100), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung 1: On-1", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung 2: On-2", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung 1 Richtung", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
 	} while (-1 == cv::waitKey(10));
 
@@ -155,18 +169,27 @@ static void onMouse(int event, int x, int y, int, void* param)
 		return;
 
 	// Auf Klicks reagieren
-	CarDetection* carDetection = (CarDetection*)(param);
+	ParamOnMouse* paramOnMouse = (ParamOnMouse*)(param);
 	if (x > 20 && x < 200)
 	{
 		// Referenzpunkte neu berechnen
 		if (y > 80 && y < 100)
-			carDetection->resetRefValue();
+			paramOnMouse->carDetection->resetRefValue();
 		// Kanal 1 schalten
 		if (y > 110 && y < 130)
-			;
+			paramOnMouse->carControlDomi1->toggleDirection();
 		// Kanal 2 schalten
 		if (y > 140 && y < 160)
-			;
+			paramOnMouse->carControlDomi2->toggleDirection();
+		// Ansicht umschalten
+		if (y > 170 && y < 190)
+			paramOnMouse->carDetection->ChangePaintMode();
+		// Ansicht umschalten
+		if (y > 200 && y < 220)
+		{
+			paramOnMouse->carControlDomi1->ChangeVelocityDirection();
+			paramOnMouse->carControlDomi2->ChangeVelocityDirection();
+		}
 	}
 }
 
