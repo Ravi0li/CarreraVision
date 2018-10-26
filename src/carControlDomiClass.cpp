@@ -354,6 +354,7 @@ void CarControlDomiClass::loopingThread()
 	calculateGlobalControlInput();
 
 	// TODO: bisschen mehr Intelligenz braucht man wohl
+	startFrame = std::chrono::high_resolution_clock::now();
 	while (!stop)
 	{
 		// Frameratenmessung
