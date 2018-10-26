@@ -1,51 +1,77 @@
 <?xml version="1.0"?>
 <opencv_storage>
- <!-- Allgemeine Infos -->
- <author>"Oliver Holstein"</author>
- <date>"2018-02-25"</date>
+  <!-- Allgemeine Infos -->
+  <author>"Oliver Holstein, Dominik Weber"</author>
+  <date>"2018-10-26"</date>
+  
+  <!-- Erkennung der Strecke -->
+  <track_detection>
+    <hsv_range>
+      <min_h>100</min_h>
+      <min_s>100</min_s>
+      <min_v>40</min_v>
+      <max_h>140</max_h>
+      <max_s>256</max_s>
+      <max_v>230</max_v>
+    </hsv_range>
+    <morphology>
+      <morph_size>5</morph_size>
+    </morphology>
+    <blob_detection>
+      <min_threshold>10</min_threshold>
+      <max_threshold>30</max_threshold>
+      <blob_color>255</blob_color>
+	 	 <double_points_min_faktor>1.33</double_points_min_faktor>
+	 	 <double_points_max_faktor>2.00</double_points_max_faktor>
+    </blob_detection>
+    <search_lines_straight>
+      <max_distance>150</max_distance>
+      <max_angle>0.1</max_angle>
+    </search_lines_straight>
+    <search_lines_curved>
+      <max_distance>300</max_distance>
+      <max_angle>1.0</max_angle>
+    </search_lines_curved>
+    <search_lines_checkends>
+      <max_distance>500</max_distance>
+      <max_angle>0.5</max_angle>
+      <safe_distance>100</safe_distance>
+    </search_lines_checkends>
+	  <lanes_detection>
+	    <side_to_lane>0.28</side_to_lane>
+	 	 <side_to_lane_cross>0.4</side_to_lane_cross>
+	 	 <cross_lane_filter_min_faktor>0.77</cross_lane_filter_min_faktor>
+	 	 <cross_lane_filter_max_faktor>1.23</cross_lane_filter_max_faktor>
+	 	 <junction_detection_box_size>15</junction_detection_box_size>
+	 	 <junction_detection_blur_size>5</junction_detection_blur_size>
+	 	 <junction_detection_count_limit>5</junction_detection_count_limit>
+	  </lanes_detection>
+  </track_detection>
 
- <!-- Erkennung der Strecke -->
- <track_detection>
-   <hsv_range>
-     <min_h>100</min_h>
-     <min_s>100</min_s>
-     <min_v>40</min_v>
-     <max_h>140</max_h>
-     <max_s>256</max_s>
-     <max_v>230</max_v>
-   </hsv_range>
-   <morphology>
-     <morph_size>5</morph_size>
-   </morphology>
-   <blob_detection>
-     <min_threshold>10</min_threshold>
-     <max_threshold>30</max_threshold>
-     <blob_color>255</blob_color>
-		 <double_points_min_faktor>1.33</double_points_min_faktor>
-		 <double_points_max_faktor>2.00</double_points_max_faktor>
-   </blob_detection>
-   <search_lines_straight>
-     <max_distance>150</max_distance>
-     <max_angle>0.1</max_angle>
-   </search_lines_straight>
-   <search_lines_curved>
-     <max_distance>300</max_distance>
-     <max_angle>1.0</max_angle>
-   </search_lines_curved>
-   <search_lines_checkends>
-     <max_distance>500</max_distance>
-     <max_angle>0.5</max_angle>
-     <safe_distance>100</safe_distance>
-   </search_lines_checkends>
-	 <lanes_detection>
-	   <side_to_lane>0.28</side_to_lane>
-		 <side_to_lane_cross>0.4</side_to_lane_cross>
-		 <cross_lane_filter_min_faktor>0.77</cross_lane_filter_min_faktor>
-		 <cross_lane_filter_max_faktor>1.23</cross_lane_filter_max_faktor>
-		 <junction_detection_box_size>15</junction_detection_box_size>
-		 <junction_detection_blur_size>5</junction_detection_blur_size>
-		 <junction_detection_count_limit>5</junction_detection_count_limit>
-	 </lanes_detection>
- </track_detection>
- 
+  <!-- Fahrzeugerkennung -->
+  <car_detection>
+    <detection_area_size>1</detection_area_size>
+    <trigger_value>100</trigger_value>
+    <adjust_value_if_not_triggert>0.3</adjust_value_if_not_triggert>
+  </car_detection>
+
+  <!-- Fahrzeugerkennung -->
+  <bluetooth_connection>
+    <serial_port_name>/dev/rfcomm0</serial_port_name>
+    <serial_baut_rate>115200</serial_baut_rate>
+  </bluetooth_connection>
+
+  <!-- Fahrzeugsteuerung vom Domi -->
+  <car_control_domi>
+    <window_size_soothless>7</window_size_soothless>
+    <min_velocity>0</min_velocity>
+    <max_velocity>180</max_velocity>
+    <ref_car_mass>0.100</ref_car_mass>
+    <actual_car_mass>0.150</actual_car_mass>
+    <ref_radius>0.25</ref_radius>
+    <ref_velocity>120</ref_velocity>
+    <braking_factor>20.0</braking_factor>
+    <correction_factor>1.00</correction_factor>
+  </car_control_domi>
+  
 </opencv_storage>

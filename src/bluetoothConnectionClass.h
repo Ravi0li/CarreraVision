@@ -3,12 +3,13 @@
 #include <boost/asio/serial_port.hpp> 
 #include <boost/asio.hpp> 
 #include <boost/thread/mutex.hpp>
+#include <opencv2/core.hpp>
 
 class BluetoothConnectionClass
 {
 public:
 	// C'tor & D'tor
-	BluetoothConnectionClass();
+	BluetoothConnectionClass(cv::FileNode _para);
 	~BluetoothConnectionClass();
 	
 	// Methoden
@@ -21,6 +22,7 @@ public:
 	int getSetValue2();
 
 private:
+	cv::FileNode para;				// Parameter aus XML
 	boost::mutex mtx_;
 	boost::asio::io_service* io;	// IO Service für BT-Verbindung
 	boost::asio::serial_port* port;	// Serieller Port für BT-Verbindung

@@ -8,7 +8,7 @@
 class CarControlDomiClass
 {
 public:
-	CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance);
+	CarControlDomiClass(cv::FileNode _para, InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance);
 	void loopingThread();
 	void stopThread();
 	~CarControlDomiClass();
@@ -17,6 +17,7 @@ public:
 	int getFrameRate();
 
 private:
+	cv::FileNode para;				// Parameter aus XML
 
 	// Diese Werte müssen einmalig per Kalibrierung festgelegt und händisch gemessen werden
 

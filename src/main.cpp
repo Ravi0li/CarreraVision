@@ -96,7 +96,7 @@ int main(int argc, const char** argv)
 
 	// Vorbereiten der Streckenauswertung
 	InformationShareClass infoPackage1, infoPackage2;
-	CarDetection carDetection(lane1, lane2);
+	CarDetection carDetection(para["car_detection"], lane1, lane2);
 	carDetection.setInfoPackage(&infoPackage1, &infoPackage2);
 	carDetection.setOutputImage(&image);
 	if (!carDetection.setSource(parser.get<std::string>("trackvid")))
@@ -108,7 +108,7 @@ int main(int argc, const char** argv)
 	}
 
 	// Bluetooth Funktionalität herstellen
-	BluetoothConnectionClass BLECon;
+	BluetoothConnectionClass BLECon(para["bluetooth_connection"]);
 	bool BTconnected = false;
 	// Versuche COM-Port zu öffnen, 5 Versuche
 	BLECon.disconnect();
@@ -125,8 +125,8 @@ int main(int argc, const char** argv)
 	}
 
 	// Vorbereiten der Regelung
-	CarControlDomiClass carControlDomi1(&infoPackage1, (int)lane1.size(), &lane1, &BLECon, 1, 0.10f);
-	CarControlDomiClass carControlDomi2(&infoPackage2, (int)lane2.size(), &lane2, &BLECon, 2, 0.10f);
+	CarControlDomiClass carControlDomi1(para["car_control_domi"], &infoPackage1, (int)lane1.size(), &lane1, &BLECon, 1, 0.10f);
+	CarControlDomiClass carControlDomi2(para["car_control_domi"], &infoPackage2, (int)lane2.size(), &lane2, &BLECon, 2, 0.10f);
 
 	// Threads
 	boost::thread_group tgroup;

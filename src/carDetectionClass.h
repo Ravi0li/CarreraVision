@@ -9,7 +9,7 @@
 class CarDetection
 {
 public:
-	CarDetection(std::vector<cv::Point2f> lane1s, std::vector<cv::Point2f> lane2s);
+	CarDetection(cv::FileNode _para, std::vector<cv::Point2f> lane1s, std::vector<cv::Point2f> lane2s);
 	~CarDetection();
 	void setInfoPackage(InformationShareClass *laneShare1, InformationShareClass *laneShare2);
 	bool setSource(std::string file);
@@ -29,6 +29,7 @@ private:
 	void paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *lane, InformationShareClass *car);
 	cv::Scalar hsvScalar(double h, double s, double v);
 
+	cv::FileNode para;						// Parameter aus XML
 	InformationShareClass *car1, *car2;     // Übergabeparameter der Autos
 	std::vector<cv::Point2f> lane1, lane2;  // Punktpositionen zum auswerten
 	std::vector<cv::Vec3i> mid1, mid2;		// Mittelwerte von denen die Abweichung berechnet wird

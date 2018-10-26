@@ -9,8 +9,9 @@
 // --------------------------------------------------------------------------
 // Konstruktor
 // --------------------------------------------------------------------------
-CarDetection::CarDetection(std::vector<cv::Point2f> lane1s, std::vector<cv::Point2f> lane2s)
+CarDetection::CarDetection(cv::FileNode _para, std::vector<cv::Point2f> lane1s, std::vector<cv::Point2f> lane2s)
 {
+	para = _para;
 	// Setzen der Auswertepunkte
 	lane1 = lane1s;
 	lane2 = lane2s;
@@ -41,14 +42,13 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 	car2->SetPosition(-1);
 	// Auswertepattern setzen
 	analysePattern.push_back(cv::Point2f(0,  0));
-	analysePattern.push_back(cv::Point2f(1,  0));
-	analysePattern.push_back(cv::Point2f(-1, 0));
-	analysePattern.push_back(cv::Point2f(0,  1));
-	analysePattern.push_back(cv::Point2f(0, -1));
-	//analysePattern.push_back(cv::Point2f(3,  0));
-	//analysePattern.push_back(cv::Point2f(-3, 0));
-	//analysePattern.push_back(cv::Point2f(0,  3));
-	//analysePattern.push_back(cv::Point2f(0, -3));
+	for (int i = 1; i < (int)para["detection_area_size"]; i++)
+	{
+		analysePattern.push_back(cv::Point2f(i, 0));
+		analysePattern.push_back(cv::Point2f(-i, 0));
+		analysePattern.push_back(cv::Point2f(0, i));
+		analysePattern.push_back(cv::Point2f(0, -i));
+	}
 }
 
 // --------------------------------------------------------------------------
@@ -186,7 +186,7 @@ void CarDetection::getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, s
 void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig)
 {
 	// zu Triggernder Grenzwert
-	int maxTrig = 100;
+	int maxTrig = (int)para["trigger_value"];
 	for (int i = 0; i < lane->size(); i++)
 	{
 		cv::Point2f pos((*lane)[i].x * downScall, (*lane)[i].y * downScall);
@@ -209,7 +209,8 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 		else
 		{
 			// Langsames angleichen
-			(*mid)[i] = (*mid)[i] * 0.7 + getAllPixel(*image, (*lane)[i]) * 0.3;
+			double adjValue = (double)para["adjust_value_if_not_triggert"];
+			(*mid)[i] = (*mid)[i] * (1.0-adjValue) + getAllPixel(*image, (*lane)[i]) * adjValue;
 			// Punkt einzeichnen
 			if (paintMode == 1)
 				cv::circle(*image, pos, 2, cv::Scalar(255, 255, 255), 2);

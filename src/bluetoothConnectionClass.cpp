@@ -7,12 +7,14 @@
 #include <chrono>
 #include <thread>
 
-BluetoothConnectionClass::BluetoothConnectionClass()
+BluetoothConnectionClass::BluetoothConnectionClass(cv::FileNode _para)
 {	
+	para = _para;
 	io = new boost::asio::io_service();
 	port = new boost::asio::serial_port(*io);
-	serialPortString = "/dev/rfcomm0";
-	baudRate = 115200;
+	serialPortString = (std::string)para["serial_port_name"];
+	std::cout << serialPortString;
+	baudRate = (int)para["serial_baut_rate"];
 	setValue1 = 0;
 	setValue2 = 0;
 	sendString = new char[2];	// Länge 1 ist erstmal noch Platzhalter

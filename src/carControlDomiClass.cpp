@@ -14,23 +14,23 @@
 #endif
 
 #define M_PI			3.14159265358979323846
-#define MAX_VELOCITY	180
-#define MIN_VELOCITY	0
 
 // --------------------------------------------------------------------------
 // Kalibrierte Werte festlegen
 // --------------------------------------------------------------------------
-CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance)
+CarControlDomiClass::CarControlDomiClass(cv::FileNode _para, InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance)
 {
+	para = _para;
+
 	// Diese Werte müssen einmalig per Kalibrierung festgelegt und händisch gemessen werden
-	refCarMass = (float) 0.100;		// kg
-	actualCarMass =  (float) 0.150;	// kg
-	refRadius = (float) 0.25;		// m
-	refVelocity = 120;				// zwischen 0 und 255
-	brakingFactor = (float) 20.0;	// ohne Einheit
+	refCarMass = (float)para["ref_car_mass"];		// kg
+	actualCarMass = (float)para["actual_car_mass"];	// kg
+	refRadius = (float)para["ref_radius"];			// m
+	refVelocity = (int)para["ref_velocity"];		// zwischen 0 und 255
+	brakingFactor = (float)para["braking_factor"];	// ohne Einheit
 
 	// Korrekturfaktor bestimmt Verhältnis zum berechneten maximal möglichen Stellsignal
-	correctionFactor = (float) 1.00;
+	correctionFactor = (float)para["correction_factor"];
 
 	// Schnittstelle
 	this->infoPackage = infoPackage;
@@ -39,7 +39,7 @@ CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int
 	this->bluetoothObject = bluetoothObject;
 	this->channel = channel;
 	this->pointDistance = pointDistance;
-	this->minimumVelocity = MIN_VELOCITY;
+	this->minimumVelocity = (int)para["min_velocity"];
 	this->direction = 1;																					
 
 	trackVelocityNoBraking = new int[countTrackpoints];
@@ -66,11 +66,11 @@ int CarControlDomiClass::calculateCurrentControlInput(float currentRadius)
 	{
 		// Stellsignal auf Basis der Gesetze der Zentripetalkraft berechnen
 		velocity = correctionFactor * sqrt(massRatio * radiusRation * (float) pow(refVelocity, 2));
-		velocity = std::min(std::max(MIN_VELOCITY, velocity), MAX_VELOCITY);
+		velocity = std::min(std::max((int)para["min_velocity"], velocity), (int)para["max_velocity"]);
 	}
 	else
 	{
-		velocity = MAX_VELOCITY;
+		velocity = (int)para["max_velocity"];
 	}
 
 	return velocity;
@@ -81,7 +81,7 @@ int CarControlDomiClass::calculateCurrentControlInput(float currentRadius)
 // --------------------------------------------------------------------------
 void CarControlDomiClass::smoothTrackVelocity()
 {
-	const int windowSize = 7;	// sollte ungerade sein
+	const int windowSize = (int)para["window_size_soothless"];	// sollte ungerade sein
 	int* filteredVelocity = new int[countTrackpoints];
 	int* medianBuffer = new int[windowSize];
 
@@ -190,10 +190,10 @@ void CarControlDomiClass::calculateBreakpoints()
 
 	#ifdef DEBUG_CAR_CONTROL
 		const std::string s1("mit_glaetten_mit_bremsen1");
-		outputArrayAsCSV(trackVelocityDirection1, countTrackpoints, s1);
+		//outputArrayAsCSV(trackVelocityDirection1, countTrackpoints, s1);
 
 		const std::string s2("mit_glaetten_mit_bremsen2");
-		outputArrayAsCSV(trackVelocityDirection2, countTrackpoints, s2);
+		//outputArrayAsCSV(trackVelocityDirection2, countTrackpoints, s2);
 	#endif
 }
 
@@ -211,6 +211,8 @@ void CarControlDomiClass::outputArrayAsCSV(int* arrayToConvert, int length, std:
 	// Alle Streckenpunkte als CSV einfügen
 	for (int i = 0; i < length; i++)
 	{
+		if (!fileHandle)
+			return;
 		fileHandle << arrayToConvert[i] << ";" << "\n";
 	}
 	
@@ -224,7 +226,7 @@ void CarControlDomiClass::outputArrayAsCSV(int* arrayToConvert, int length, std:
 // --------------------------------------------------------------------------
 void CarControlDomiClass::calculateMinmumControlInput()
 {
-	int min = MAX_VELOCITY;
+	int min = (int)para["max_velocity"];
 
 	for (int i = 0; i < countTrackpoints; i++)
 	{
@@ -314,7 +316,7 @@ void CarControlDomiClass::calculateGlobalControlInput()
 
 	#ifdef DEBUG_CAR_CONTROL
 		const std::string s2("mit_glaetten_ohne_bremsen");
-		outputArrayAsCSV(trackVelocityNoBraking, countTrackpoints, s2);
+		//outputArrayAsCSV(trackVelocityNoBraking, countTrackpoints, s2);
 	#endif
 
 	infoPackage->lock();
