@@ -85,10 +85,11 @@ bool CarDetection::setSource(std::string file)
 			std::cout << "FEHLER: Die Kamera konnte nicht angesprochen werden" << std::endl;
 			return false;
 		}
-		cap->set(CV_CAP_PROP_FPS, 30);
-		cap->set(CV_CAP_PROP_FRAME_WIDTH, 1640);
-		cap->set(CV_CAP_PROP_FRAME_HEIGHT, 1232);
-		cap->set(CV_CAP_PROP_ISO_SPEED, 200);
+		cap->set(CV_CAP_PROP_FRAME_WIDTH, 820); //1640
+		cap->set(CV_CAP_PROP_FRAME_HEIGHT, 616);  //1232
+		cap->set(CV_CAP_PROP_FPS, 40);
+		cap->set(CV_CAP_PROP_BUFFERSIZE, 1);
+		//cap->set(CV_CAP_PROP_ISO_SPEED, 200);
 		cap->set(CV_CAP_PROP_EXPOSURE, 5000);
 		std::cout << "Videostream von der Kamera wird gestartet" << std::endl;
 	}
@@ -123,11 +124,12 @@ void CarDetection::loopingThread()
 	do {
 		// Zeitmessung
 		auto ende = std::chrono::high_resolution_clock::now();
-		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(ende-start).count() << std::endl;
+		std::cout << "5: " << std::chrono::duration_cast<std::chrono::milliseconds>(ende-start).count() << std::endl;
 		start = std::chrono::high_resolution_clock::now();
 
 		// Neues Bild einlesen
 		*cap >> image;
+
 		if (!image.empty())
 		{
 			// Beim ersten Durchlauf Referenzpixel lesen

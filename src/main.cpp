@@ -154,7 +154,7 @@ int main(int argc, const char** argv)
 		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
-	} while (-1 == cv::waitKey(10));
+	} while (-1 == cv::waitKey(30));
 
 	// Warten bis threads ordnungsgem‰ﬂ beendet sind
 	carDetection.stopThread();

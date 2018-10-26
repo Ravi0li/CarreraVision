@@ -35,6 +35,7 @@ private:
 	cv::Mat *outImage;						// Ausgabebild
 	bool stop = false;						// Stoppen der Endlosschleife
 	int paintMode;							// Was soll gezeichnet werden
+	float downScall = 0.25; 
 };
 
 //int trackpoints;
