@@ -4,6 +4,7 @@
 #include <opencv2/core.hpp>
 #include <string>
 #include <chrono>
+#include <mutex>
 
 class CarControlDomiClass
 {
