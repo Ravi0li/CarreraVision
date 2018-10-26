@@ -84,9 +84,8 @@ int main(int argc, const char** argv)
 	TrackDetection trackDetection(para["track_detection"]);
 	trackDetection.setDebugWin(parser.get<bool>("debugwin"));
 	trackDetection.setPicture(image);
-	if (trackDetection.calculate(0.10f))
+	if (!trackDetection.calculate(0.10f))
 	{
-		cv::waitKey(10);
 		std::cout << "Programmabbruch" << std::endl;
 		std::getchar();
 		return -1;
