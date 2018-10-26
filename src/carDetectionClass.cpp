@@ -3,7 +3,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
-#include <chrono>
 #include <thread>
 #include <numeric>
 
@@ -101,6 +100,8 @@ bool CarDetection::setSource(std::string file)
 			std::cout << "FEHLER: Datei nicht gefunden mit dem Videostream" << std::endl;
 			return false;
 		}
+		float width = cap->get(CV_CAP_PROP_FRAME_WIDTH);
+		downScall = width / 3280.0;
 		std::cout << "Videostream wird aus Datei geladen" << std::endl;
 	}
 	return true;
@@ -120,12 +121,20 @@ void CarDetection::stopThread()
 void CarDetection::loopingThread()
 {
 	cv::Mat image;
-	auto start = std::chrono::high_resolution_clock::now();
+	startFrame = std::chrono::high_resolution_clock::now();
 	do {
-		// Zeitmessung
-		auto ende = std::chrono::high_resolution_clock::now();
-		std::cout << "5: " << std::chrono::duration_cast<std::chrono::milliseconds>(ende-start).count() << std::endl;
-		start = std::chrono::high_resolution_clock::now();
+		// Frameratenmessung
+		auto now = std::chrono::high_resolution_clock::now();
+		int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
+		if (diff > 1000)
+		{
+			frameMutex.lock();
+			frameRate = countFrame / (diff/1000.0);
+			frameMutex.unlock();
+			countFrame = 0;
+			startFrame = now;
+		}
+		countFrame++;
 
 		// Neues Bild einlesen
 		*cap >> image;
@@ -180,7 +189,7 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 	int maxTrig = 100;
 	for (int i = 0; i < lane->size(); i++)
 	{
-		cv::Point2f pos((*lane)[i].x * 0.5f, (*lane)[i].y * 0.5f);
+		cv::Point2f pos((*lane)[i].x * downScall, (*lane)[i].y * downScall);
 		cv::Vec3i p = getAllPixel(*image, (*lane)[i]);
 		int r = (int)abs(p[0] - (*mid)[i][0]);
 		int g = (int)abs(p[1] - (*mid)[i][1]);
@@ -249,7 +258,7 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 	// Einzeichnen des Autos
 	if (car->GetPosition() != -1 && paintMode == 1)
 	{
-		cv::Point2f pos((*lane)[car->GetPosition()].x * 0.5f, (*lane)[car->GetPosition()].y * 0.5f);
+		cv::Point2f pos((*lane)[car->GetPosition()].x * downScall, (*lane)[car->GetPosition()].y * downScall);
 		cv::circle(*image, pos, 5, cv::Scalar(0, 0, 255), 5);
 	}
 }
@@ -259,7 +268,7 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 // --------------------------------------------------------------------------
 cv::Vec3i CarDetection::getPixel(cv::Mat image, cv::Point2f p, cv::Point2f offset)
 {
-	return image.at<cv::Vec3b>((int)(p.y * 0.5) + offset.x, (int)(p.x * 0.5) + offset.y);
+	return image.at<cv::Vec3b>((int)(p.y * downScall) + offset.x, (int)(p.x * downScall) + offset.y);
 }
 
 // --------------------------------------------------------------------------
@@ -291,7 +300,7 @@ void CarDetection::paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *
 	car->unlock();
 	for (int i = 0; i < lane->size(); i++)
 	{
-		cv::Point2f pos((*lane)[i].x * 0.5f, (*lane)[i].y * 0.5f);
+		cv::Point2f pos((*lane)[i].x * downScall, (*lane)[i].y * downScall);
 		cv::circle(*image, pos, 2, hsvScalar(0, values[i], 255), 2);
 	}
 }
@@ -305,4 +314,15 @@ cv::Scalar CarDetection::hsvScalar(double h, double s, double v)
 	cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(h, s, v));
 	cv::cvtColor(hsv, rgb, CV_HSV2RGB);
 	return cv::Scalar((int)rgb.at<cv::Vec3b>(0, 0)[0], (int)rgb.at<cv::Vec3b>(0, 0)[1], (int)rgb.at<cv::Vec3b>(0, 0)[2]);
+}
+
+// --------------------------------------------------------------------------
+// zeigt die aktuelle Framerate an
+// --------------------------------------------------------------------------
+int CarDetection::getFrameRate()
+{
+	frameMutex.lock();
+	int ret = frameRate;
+	frameMutex.unlock();
+	return ret;
 }

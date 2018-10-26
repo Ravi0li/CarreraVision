@@ -205,6 +205,8 @@ void CarControlDomiClass::outputArrayAsCSV(int* arrayToConvert, int length, std:
 	std::ofstream fileHandle;
 
 	fileHandle.open(label + ".csv");
+	if (!fileHandle)
+		return;
 
 	// Alle Streckenpunkte als CSV einfügen
 	for (int i = 0; i < length; i++)
@@ -352,9 +354,22 @@ void CarControlDomiClass::loopingThread()
 	// TODO: bisschen mehr Intelligenz braucht man wohl
 	while (!stop)
 	{
+		// Frameratenmessung
+		auto now = std::chrono::high_resolution_clock::now();
+		int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
+		if (diff > 1000)
+		{
+			frameMutex.lock();
+			frameRate = countFrame / (diff / 1000.0);
+			frameMutex.unlock();
+			countFrame = 0;
+			startFrame = now;
+		}
+		countFrame++;
+
 		int position = 0;
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
 		/*for (int i = 0; i < countTrackpoints; i++)
 		{
@@ -449,5 +464,15 @@ void CarControlDomiClass::ChangeVelocityDirection()
 	infoPackage->unlock();
 }
 
+// --------------------------------------------------------------------------
+// zeigt die aktuelle Framerate an
+// --------------------------------------------------------------------------
+int CarControlDomiClass::getFrameRate()
+{
+	frameMutex.lock();
+	int ret = frameRate;
+	frameMutex.unlock();
+	return ret;
+}
 
 

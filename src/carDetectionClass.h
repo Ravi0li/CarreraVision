@@ -3,6 +3,8 @@
 #include <opencv2/features2d.hpp>
 #include <opencv2/highgui.hpp>
 #include <vector>			// stc::vector
+#include <chrono>
+#include <mutex>
 
 class CarDetection
 {
@@ -16,6 +18,7 @@ public:
 	void stopThread();
 	void resetRefValue();
 	void ChangePaintMode();
+	int getFrameRate();
 
 private:
 	void getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid);
@@ -35,7 +38,11 @@ private:
 	cv::Mat *outImage;						// Ausgabebild
 	bool stop = false;						// Stoppen der Endlosschleife
 	int paintMode;							// Was soll gezeichnet werden
-	float downScall = 0.25; 
+	float downScall = 0.25;					// Wie viel kleiner ist der Videostream
+	std::chrono::high_resolution_clock::time_point startFrame;	// Zeit zur Frameratenmessung
+	int countFrame = 0;						// Zähler für Frameratenanzeige
+	int frameRate = 0;						// Aktuelle Framerate
+	std::mutex frameMutex;					// Mutex für die Framerate
 };
 
 //int trackpoints;

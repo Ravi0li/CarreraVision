@@ -153,7 +153,10 @@ int main(int argc, const char** argv)
 		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		std::string outFps = "FPS: " + std::to_string(carDetection.getFrameRate()) + " " + std::to_string(carControlDomi1.getFrameRate()) + " " + std::to_string(carControlDomi2.getFrameRate());
+		cv::putText(imageText, outFps , cv::Point(20, 250), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
+
 	} while (-1 == cv::waitKey(30));
 
 	// Warten bis threads ordnungsgem‰ﬂ beendet sind

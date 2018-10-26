@@ -3,6 +3,7 @@
 #include "bluetoothConnectionClass.h"
 #include <opencv2/core.hpp>
 #include <string>
+#include <chrono>
 
 class CarControlDomiClass
 {
@@ -13,6 +14,7 @@ public:
 	~CarControlDomiClass();
 	void toggleDirection();
 	void ChangeVelocityDirection();
+	int getFrameRate();
 
 private:
 
@@ -35,6 +37,12 @@ private:
 	bool stop = false;																				// Stopt den Thread
 	int minimumVelocity;																			// Kleinstes Stellsignal der Strecke
 	int direction;																					// Richtung: Kann drei Werte annehmen: 1, 0 , -1
+
+	// Frameraten messung
+	std::chrono::high_resolution_clock::time_point startFrame;	// Zeit zur Frameratenmessung
+	int countFrame = 0;											// Zähler für Frameratenanzeige
+	int frameRate = 0;											// Aktuelle Framerate
+	std::mutex frameMutex;										// Mutex für die Framerate
 
 	// Schnittstelle
 	InformationShareClass* infoPackage;							// Zeiger auf Schnittstellen Klasse
