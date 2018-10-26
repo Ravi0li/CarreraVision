@@ -42,7 +42,7 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 	car2->SetPosition(-1);
 	// Auswertepattern setzen
 	analysePattern.push_back(cv::Point2f(0,  0));
-	for (int i = 1; i < (int)para["detection_area_size"]; i++)
+	for (int i = 1; i <= (int)para["detection_area_size"]; i++)
 	{
 		analysePattern.push_back(cv::Point2f(i, 0));
 		analysePattern.push_back(cv::Point2f(-i, 0));
