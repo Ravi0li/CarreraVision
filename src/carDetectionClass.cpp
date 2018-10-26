@@ -121,6 +121,7 @@ void CarDetection::loopingThread()
 	cv::Mat image;
 	auto start = std::chrono::high_resolution_clock::now();
 	do {
+		// Zeitmessung
 		auto ende = std::chrono::high_resolution_clock::now();
 		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(ende-start).count() << std::endl;
 		start = std::chrono::high_resolution_clock::now();

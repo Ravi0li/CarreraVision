@@ -84,14 +84,16 @@ int main(int argc, const char** argv)
 	TrackDetection trackDetection(para["track_detection"]);
 	trackDetection.setDebugWin(parser.get<bool>("debugwin"));
 	trackDetection.setPicture(image);
-	trackDetection.calculate(0.10f);
+	if (trackDetection.calculate(0.10f))
+	{
+		cv::waitKey(10);
+		std::cout << "Programmabbruch" << std::endl;
+		std::getchar();
+		return -1;
+	}
 	image = trackDetection.getResultPicture();
 	std::vector<cv::Point2f> lane1, lane2;
-	trackDetection.getPointLines(&lane1, &lane2);
-		
-	// Bluetoothcommunication vorbereiten
-	 //BluetoothConnectionClass BLECon;
-	 //BLECon.connect();
+	trackDetection.getPointLines(&lane1, &lane2);	
 
 	// Vorbereiten der Streckenauswertung
 	InformationShareClass infoPackage1, infoPackage2;
@@ -100,6 +102,7 @@ int main(int argc, const char** argv)
 	carDetection.setOutputImage(&image);
 	if (!carDetection.setSource(parser.get<std::string>("trackvid")))
 	{
+		cv::waitKey(10);
 		std::cout << "Programmabbruch" << std::endl;
 		std::getchar();
 		return -1;
