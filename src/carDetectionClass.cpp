@@ -46,10 +46,10 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 	analysePattern.push_back(cv::Point2f(-1, 0));
 	analysePattern.push_back(cv::Point2f(0,  1));
 	analysePattern.push_back(cv::Point2f(0, -1));
-	analysePattern.push_back(cv::Point2f(3,  0));
-	analysePattern.push_back(cv::Point2f(-3, 0));
-	analysePattern.push_back(cv::Point2f(0,  3));
-	analysePattern.push_back(cv::Point2f(0, -3));
+	//analysePattern.push_back(cv::Point2f(3,  0));
+	//analysePattern.push_back(cv::Point2f(-3, 0));
+	//analysePattern.push_back(cv::Point2f(0,  3));
+	//analysePattern.push_back(cv::Point2f(0, -3));
 }
 
 // --------------------------------------------------------------------------
@@ -119,7 +119,12 @@ void CarDetection::stopThread()
 void CarDetection::loopingThread()
 {
 	cv::Mat image;
+	auto start = std::chrono::high_resolution_clock::now();
 	do {
+		auto ende = std::chrono::high_resolution_clock::now();
+		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(ende-start).count() << std::endl;
+		start = std::chrono::high_resolution_clock::now();
+
 		// Neues Bild einlesen
 		*cap >> image;
 		if (!image.empty())
@@ -150,7 +155,7 @@ void CarDetection::loopingThread()
 			image.copyTo(*outImage);
 		}
 		// Delay <- Bei echtzeit entfernen!!!
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	} while(!stop);
 }
 

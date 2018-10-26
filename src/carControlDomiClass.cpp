@@ -7,13 +7,14 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <thread>
 
 #ifdef DEBUG_CAR_CONTROL
 #include <fstream>
 #endif
 
 #define M_PI			3.14159265358979323846
-#define MAX_VELOCITY	255
+#define MAX_VELOCITY	180
 #define MIN_VELOCITY	0
 
 // --------------------------------------------------------------------------
@@ -22,14 +23,14 @@
 CarControlDomiClass::CarControlDomiClass(InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance)
 {
 	// Diese Werte müssen einmalig per Kalibrierung festgelegt und händisch gemessen werden
-	refCarMass = (float) 0.150;		// kg
+	refCarMass = (float) 0.100;		// kg
 	actualCarMass =  (float) 0.150;	// kg
 	refRadius = (float) 0.25;		// m
-	refVelocity = 100;				// zwischen 0 und 255
+	refVelocity = 120;				// zwischen 0 und 255
 	brakingFactor = (float) 20.0;	// ohne Einheit
 
 	// Korrekturfaktor bestimmt Verhältnis zum berechneten maximal möglichen Stellsignal
-	correctionFactor = (float) 0.85;
+	correctionFactor = (float) 1.00;
 
 	// Schnittstelle
 	this->infoPackage = infoPackage;
@@ -165,16 +166,24 @@ void CarControlDomiClass::calculateBreakpoints()
 		if (newVal < useVal) useVal = newVal;
 		newVal = trackVelocityNoBraking[(i+2) % countTrackpoints];
 		if (newVal < useVal) useVal = newVal;
+		newVal = trackVelocityNoBraking[(i+3) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		newVal = trackVelocityNoBraking[(i+4) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
 		trackVelocityDirection1[i] = useVal;
 	}
 
-	for (int i = 2; i < countTrackpoints+2; i++)
+	for (int i = 4; i < countTrackpoints+4; i++)
 	{
 		int newVal = 0, useVal;
 		useVal = trackVelocityNoBraking[i % countTrackpoints];
 		newVal = trackVelocityNoBraking[(i - 1) % countTrackpoints];
 		if (newVal < useVal) useVal = newVal;
 		newVal = trackVelocityNoBraking[(i - 2) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		newVal = trackVelocityNoBraking[(i - 3) % countTrackpoints];
+		if (newVal < useVal) useVal = newVal;
+		newVal = trackVelocityNoBraking[(i - 4) % countTrackpoints];
 		if (newVal < useVal) useVal = newVal;
 		trackVelocityDirection2[i] = useVal;
 	}
@@ -346,7 +355,7 @@ void CarControlDomiClass::loopingThread()
 		int position = 0;
 
 		//boost::this_thread::sleep
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
 		/*for (int i = 0; i < countTrackpoints; i++)
 		{
@@ -357,6 +366,14 @@ void CarControlDomiClass::loopingThread()
 		infoPackage->lock();
 		position = infoPackage->GetPosition();
 		infoPackage->unlock();
+
+		if (trackVelocityDirectionDrive[position] <= 120)
+			delaySamples = 2;
+		else if (trackVelocityDirectionDrive[position] <= 160 && trackVelocityDirectionDrive[position] > 120)
+			delaySamples = 4;
+		else if (trackVelocityDirectionDrive[position] > 160)
+			delaySamples = 6;
+	
 
 		// Stellsignal per BT senden
 		if (channel == 1)
@@ -370,7 +387,7 @@ void CarControlDomiClass::loopingThread()
 				bluetoothObject->sendChannel1(direction * minimumVelocity);
 			}
 
-			std::cout << "Sende Kanal 1" << std::endl;
+			//std::cout << "Sende Kanal 1" << std::endl;
 		}
 		else if (channel == 2)
 		{
@@ -383,7 +400,7 @@ void CarControlDomiClass::loopingThread()
 				bluetoothObject->sendChannel2(direction * minimumVelocity);
 			}
 
-			std::cout << "Sende Kanal 2" << std::endl;
+			//std::cout << "Sende Kanal 2" << std::endl;
 		}
 	}
 }

@@ -11,7 +11,7 @@ BluetoothConnectionClass::BluetoothConnectionClass()
 {	
 	io = new boost::asio::io_service();
 	port = new boost::asio::serial_port(*io);
-	serialPortString = "COM3";
+	serialPortString = "/dev/rfcomm0";
 	baudRate = 115200;
 	setValue1 = 0;
 	setValue2 = 0;
