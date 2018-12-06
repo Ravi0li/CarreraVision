@@ -92,7 +92,8 @@ bool CarDetection::setSource(std::string file)
 		cap->set(CV_CAP_PROP_BUFFERSIZE, 1);
 		cap->set(CV_CAP_PROP_ISO_SPEED, 200);
 		cap->set(CV_CAP_PROP_EXPOSURE, 1);
-		std::cout << "Videostream von der Kamera wird gestartet" << std::endl;
+		fromFile = false;
+		std::cout << "Videostream von der Kamera wurde gestartet" << std::endl;
 	}
 	else // Lade eine Datei als Quelle
 	{
@@ -180,7 +181,8 @@ void CarDetection::loopingThread()
 			}
 		}
 		// Delay <- Bei echtzeit entfernen!!!
-		//std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		if (fromFile)
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	} while(!stop);
 }
 

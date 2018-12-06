@@ -4,6 +4,8 @@
 #include <boost/asio.hpp> 
 #include <boost/thread/mutex.hpp>
 #include <opencv2/core.hpp>
+#include <chrono>
+#include <mutex>
 
 class BluetoothConnectionClass
 {

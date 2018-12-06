@@ -172,19 +172,19 @@ int main(int argc, const char** argv)
 		carDetection.frameOutLock();
 		image.copyTo(imageText);
 		carDetection.frameOutUnlock();
-		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Kallibrieren", cv::Point(20, 100), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung 1 Richtung", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Kallibrieren", cv::Point(20, 100), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung 1 Richtung", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
 		std::string outFps = "FPS: V" + std::to_string(frameRate) + 
 			                     " D" + std::to_string(carDetection.getFrameRate()) + 
 			                    " C1" + std::to_string(carControlDomi1.getFrameRate()) + 
 			                    " C2" + std::to_string(carControlDomi2.getFrameRate()) + 
 			                     " B" + std::to_string(BLECon.getFrameRate());
-		cv::putText(imageText, outFps , cv::Point(20, 250), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, outFps , cv::Point(20, 250), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
 
 		// Debugausgabe in Datei

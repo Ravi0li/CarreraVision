@@ -8,6 +8,7 @@
 #include <string>
 #include <algorithm>
 #include <thread>
+#include <deque>
 
 #ifdef DEBUG_CAR_CONTROL
 #include <fstream>
@@ -127,73 +128,46 @@ void CarControlDomiClass::smoothTrackVelocity()
 // --------------------------------------------------------------------------
 void CarControlDomiClass::calculateBreakpoints()
 {
-	/*cv::Mat src, dst1, dst2;
-	cv::Mat kernel;
-	cv::Point anchor;
+	// Wie viel soll in die zukunft geschaut werden
+	int showInfFutureFactor = (int)para["break_show_in_future_width"];;
 
-	// Stellsignale laden
-	src = cv::Mat::zeros(1, countTrackpoints, CV_8U);
-	dst1 = cv::Mat::zeros(1, countTrackpoints, CV_8U);
-	dst2 = cv::Mat::zeros(1, countTrackpoints, CV_8U);
-
-	for (int i = 0; i < countTrackpoints; i++)
+	// Berechnen der Zukunftswerte
+	if (countTrackpoints > 2 * showInfFutureFactor)
 	{
-		src.at<uchar>(cv::Point(i, 0)) = (uchar) trackVelocityNoBraking[i];
+		// Richtung 1
+		trackVelocityDirection1.clear();
+		std::deque<int> area1(trackVelocityNoBraking.end() - showInfFutureFactor, trackVelocityNoBraking.end());
+		for (size_t i = 0; i < countTrackpoints; ++i)
+		{
+			area1.push_back(trackVelocityNoBraking[i]);
+			int minValue = *std::min_element(area1.begin(), area1.end());
+			trackVelocityDirection1.push_back(minValue);
+			area1.pop_front();
+		}
+		// Richtung 2
+		std::vector<int> reverseArray;
+		std::deque<int> area2(trackVelocityNoBraking.begin(), trackVelocityNoBraking.begin() + showInfFutureFactor);
+		for (int i = countTrackpoints-1; i >= 0; --i)
+		{
+			area2.push_front(trackVelocityNoBraking[i]);
+			int minValue = *std::min_element(area2.begin(), area2.end());
+			reverseArray.emplace_back(minValue);
+			area2.pop_back();
+		}
+		std::reverse_copy(reverseArray.begin(), reverseArray.end(), trackVelocityDirection2.begin());
 	}
-
-	// Argumente für Filterung
-	anchor = cv::Point(-1, -1);		// Mittelpunkt des Filterkernels verwenden								
-
-	// Filtermasken festlegen und filtern
-	kernel = (cv::Mat_<double>(1, 7) << 0, 0, 0, 0.33, 0.33, 0.33, 0.33);
-	filter2D(src, dst1, -1, kernel, anchor, 0);
-	//filter2D(src, dst1, -1, kernel, anchor, 0, cv::BORDER_WRAP);
-
-	kernel = (cv::Mat_<double>(1, 7) << 0.33, 0.33, 0.33, 0.33, 0, 0, 0);
-	//filter2D(src, dst2, -1, kernel, anchor, 0, cv::BORDER_WRAP);
-
-	for (int i = 0; i < countTrackpoints; i++)
+	else
 	{
-		trackVelocityDirection1[i] = dst1.at<uchar>(i);
-		trackVelocityDirection2[i] = dst2.at<uchar>(i);
-	}*/
-
-	for (int i = 0; i < countTrackpoints; i++)
-	{
-		int newVal = 0, useVal;
-		useVal = trackVelocityNoBraking[i];
-		newVal = trackVelocityNoBraking[(i+1) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		newVal = trackVelocityNoBraking[(i+2) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		newVal = trackVelocityNoBraking[(i+3) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		newVal = trackVelocityNoBraking[(i+4) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		trackVelocityDirection1[i] = useVal;
-	}
-
-	for (int i = 4; i < countTrackpoints+4; i++)
-	{
-		int newVal = 0, useVal;
-		useVal = trackVelocityNoBraking[i % countTrackpoints];
-		newVal = trackVelocityNoBraking[(i - 1) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		newVal = trackVelocityNoBraking[(i - 2) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		newVal = trackVelocityNoBraking[(i - 3) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		newVal = trackVelocityNoBraking[(i - 4) % countTrackpoints];
-		if (newVal < useVal) useVal = newVal;
-		trackVelocityDirection2[i-4] = useVal;
+		trackVelocityDirection1 = trackVelocityNoBraking;
+		trackVelocityDirection2 = trackVelocityNoBraking;
 	}
 
 	#ifdef DEBUG_CAR_CONTROL
 		const std::string s1("mit_glaetten_mit_bremsen1");
-		//outputArrayAsCSV(trackVelocityDirection1, countTrackpoints, s1);
+		outputArrayAsCSV(trackVelocityDirection1, countTrackpoints, s1);
 
 		const std::string s2("mit_glaetten_mit_bremsen2");
-		//outputArrayAsCSV(trackVelocityDirection2, countTrackpoints, s2);
+		outputArrayAsCSV(trackVelocityDirection2, countTrackpoints, s2);
 	#endif
 }
 
@@ -316,7 +290,7 @@ void CarControlDomiClass::calculateGlobalControlInput()
 
 	#ifdef DEBUG_CAR_CONTROL
 		const std::string s2("mit_glaetten_ohne_bremsen");
-		//outputArrayAsCSV(trackVelocityNoBraking, countTrackpoints, s2);
+		outputArrayAsCSV(trackVelocityNoBraking, countTrackpoints, s2);
 	#endif
 
 	infoPackage->lock();

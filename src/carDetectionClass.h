@@ -51,6 +51,7 @@ private:
 	int frameRate = 0;						// Aktuelle Framerate
 	std::mutex frameMutex;					// Mutex für die Framerate
 	std::mutex outImageMutex;				// Mutex für den OutFrame
+	bool fromFile = true;					// ist der Stream aus einer Datei oder aus einem File
 };
 
 //int trackpoints;

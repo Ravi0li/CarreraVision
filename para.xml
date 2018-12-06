@@ -64,6 +64,7 @@
   <!-- Fahrzeugsteuerung vom Domi -->
   <car_control_domi>
     <window_size_soothless>7</window_size_soothless>
+		<break_show_in_future_width>4</break_show_in_future_width>
     <min_velocity>0</min_velocity>
     <max_velocity>180</max_velocity>
     <ref_car_mass>0.100</ref_car_mass>
