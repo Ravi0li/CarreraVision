@@ -26,11 +26,12 @@ BluetoothConnectionClass::BluetoothConnectionClass(cv::FileNode _para)
 // --------------------------------------------------------------------------
 // Serielle Bluetooth Verbindung herstellen
 // --------------------------------------------------------------------------
-int BluetoothConnectionClass::connect()
+int BluetoothConnectionClass::connectBLE()
 {
 	try{
 		port->open(serialPortString);
 		port->set_option(boost::asio::serial_port_base::baud_rate(baudRate));
+		connected = true;
 	}
 	catch (boost::system::system_error const& ex)
 	{
@@ -45,10 +46,11 @@ int BluetoothConnectionClass::connect()
 // --------------------------------------------------------------------------
 // Serielle Bluetooth Verbindung trennen
 // --------------------------------------------------------------------------
-int BluetoothConnectionClass::disconnect()
+int BluetoothConnectionClass::disconnectBLE()
 {
 	try {
 		port->close();
+		connected = false;
 	}
 	catch (boost::system::system_error const& ex)
 	{
@@ -61,60 +63,41 @@ int BluetoothConnectionClass::disconnect()
 }
 
 // --------------------------------------------------------------------------
-// Sende Stellsignal an Kanal 1, lasse Stellsignal von Kanal 2 unverändert
+// Setzt den wert eines Kanals ohne ihn zu senden
 // --------------------------------------------------------------------------
-void BluetoothConnectionClass::sendChannel1(int set)
+void BluetoothConnectionClass::setSendValue(int channel, int set)
 {
-	try {
+	std::lock_guard<std::mutex> lockit(lockValues);
+	if (channel == 1)
+	{
 		setValue1 = set;
-		updateSendString();
-		boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
-		
 	}
-	catch (boost::system::system_error const&  ex)
+	else if (channel == 2)
 	{
-		std::cout << " Cannout send data via channel 1: " << ex.what() << std::endl;
-	}
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
-}
-
-// --------------------------------------------------------------------------
-// Sende Stellsignal an Kanal 2, lasse Stellsignal von Kanal 1 unverändert
-// --------------------------------------------------------------------------
-void BluetoothConnectionClass::sendChannel2(int set)
-{
-	try {
 		setValue2 = set;
-		updateSendString();
-		boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
-
 	}
-	catch (boost::system::system_error const& ex)
+	else
 	{
-		std::cout << " Cannout send data via channel 2: " << ex.what() << std::endl;
+		std::cout << "ERROR: Es wurde versucht einen Wert für einen ungültigen Channel zu setzen";
 	}
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 // --------------------------------------------------------------------------
 // Sende Stellsignal an Kanal 1 und 2 
 // --------------------------------------------------------------------------
-void BluetoothConnectionClass::sendChannel12(int set1, int set2)
+void BluetoothConnectionClass::sendValuesBothChannels()
 {
-	try {
-		setValue1 = set1;
-		setValue2 = set2;
-		updateSendString();
-		boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
-
-	}
-	catch (boost::system::system_error const& ex)
+	if (connected == true)
 	{
-		std::cout << " Cannout send data via channel 1 and 2: " << ex.what() << std::endl;
+		try {
+			updateSendString();
+			boost::asio::write(*port, boost::asio::buffer(sendString, sendStringLength));
+		}
+		catch (boost::system::system_error const& ex)
+		{
+			std::cout << " Cannout send data via channel 1 and 2: " << ex.what() << std::endl;
+		}
 	}
-
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
@@ -123,30 +106,74 @@ void BluetoothConnectionClass::sendChannel12(int set1, int set2)
 // --------------------------------------------------------------------------
 void BluetoothConnectionClass::updateSendString()
 {
-	mtx_.lock();
-
 	if (sendString != NULL)
 	{ 
 		delete[] sendString;
 	}
-	
+
 	// Bastle String aus Stellsignalen zusammen
-	std::stringstream stream;
-
-	stream << setValue1;
-	stream << ",";
-	stream << setValue2;
-
-	// Konvertiere Stream zu String Objekt
-	std::string str = stream.str();
+	std::string str;
+	{
+		std::lock_guard<std::mutex> lockit(lockValues);
+		std::stringstream stream;
+		stream << setValue1;
+		stream << ",";
+		stream << setValue2;
+		str = stream.str();
+	}
 	
 	// Konvertiere String Objekt zu char*
 	sendStringLength = (int)str.length() + 1;
 	sendString = new char[sendStringLength];
 	std::strcpy(sendString, str.c_str());
 	sendString[sendStringLength - 1] = '\n';
+}
 
-	mtx_.unlock();
+// --------------------------------------------------------------------------
+// Dauerhaft durchlaufende Schleife
+// --------------------------------------------------------------------------
+void BluetoothConnectionClass::loopingThread()
+{
+	startFrame = std::chrono::high_resolution_clock::now();
+	while (!stop)
+	{
+		// Frameratenmessung
+		auto now = std::chrono::high_resolution_clock::now();
+		int diff = (int)std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
+		if (diff > 1000)
+		{
+			frameMutex.lock();
+			frameRate = (int)(countFrame / (diff / 1000.0));
+			frameMutex.unlock();
+			countFrame = 0;
+			startFrame = now;
+		}
+		countFrame++;
+
+		// Senden der Daten
+		sendValuesBothChannels();
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+	}
+}
+
+// --------------------------------------------------------------------------
+// Stopt den Thread
+// --------------------------------------------------------------------------
+void BluetoothConnectionClass::stopThread()
+{
+	stop = true;
+}
+
+// --------------------------------------------------------------------------
+// zeigt die aktuelle Framerate an
+// --------------------------------------------------------------------------
+int BluetoothConnectionClass::getFrameRate()
+{
+	frameMutex.lock();
+	int ret = frameRate;
+	frameMutex.unlock();
+	return ret;
 }
 
 // --------------------------------------------------------------------------

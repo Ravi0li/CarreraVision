@@ -116,10 +116,10 @@ int main(int argc, const char** argv)
 	BluetoothConnectionClass BLECon(para["bluetooth_connection"]);
 	bool BTconnected = false;
 	// Versuche COM-Port zu öffnen, 5 Versuche
-	BLECon.disconnect();
+	BLECon.disconnectBLE();
 	for (int countOpen = 0; countOpen < 5; countOpen++)
 	{
-		if (BLECon.connect() == 1)
+		if (BLECon.connectBLE() == 1)
 		{
 			std::cout << "Bluetooth Verbindung hergestellt." << std::endl;
 
@@ -138,6 +138,7 @@ int main(int argc, const char** argv)
 	tgroup.create_thread(boost::bind(&CarDetection::loopingThread, &carDetection));
 	tgroup.create_thread(boost::bind(&CarControlDomiClass::loopingThread, &carControlDomi1));
 	tgroup.create_thread(boost::bind(&CarControlDomiClass::loopingThread, &carControlDomi2));
+	tgroup.create_thread(boost::bind(&BluetoothConnectionClass::loopingThread, &BLECon));
 	
 	// Fenster zur anzeige anlegen
 	cv::namedWindow("Result", CV_GUI_NORMAL);
@@ -178,7 +179,11 @@ int main(int argc, const char** argv)
 		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		std::string outFps = "FPS: V" + std::to_string(frameRate) + " D" + std::to_string(carDetection.getFrameRate()) + " C1" + std::to_string(carControlDomi1.getFrameRate()) + " C2" + std::to_string(carControlDomi2.getFrameRate());
+		std::string outFps = "FPS: V" + std::to_string(frameRate) + 
+			                     " D" + std::to_string(carDetection.getFrameRate()) + 
+			                    " C1" + std::to_string(carControlDomi1.getFrameRate()) + 
+			                    " C2" + std::to_string(carControlDomi2.getFrameRate()) + 
+			                     " B" + std::to_string(BLECon.getFrameRate());
 		cv::putText(imageText, outFps , cv::Point(20, 250), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
 
@@ -194,6 +199,7 @@ int main(int argc, const char** argv)
 	carDetection.stopThread();
 	carControlDomi1.stopThread();
 	carControlDomi2.stopThread();
+	BLECon.stopThread();
 	tgroup.join_all();
 
 	return 0;

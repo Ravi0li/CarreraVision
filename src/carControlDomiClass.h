@@ -12,7 +12,6 @@ public:
 	CarControlDomiClass(cv::FileNode _para, InformationShareClass* infoPackage, int countTrackpoints, std::vector<cv::Point2f>* cartesianTrackPoints, BluetoothConnectionClass* bluetoothObject, int channel, float pointDistance);
 	void loopingThread();
 	void stopThread();
-	~CarControlDomiClass();
 	void toggleDirection();
 	void ChangeVelocityDirection();
 	int getFrameRate();
@@ -30,10 +29,10 @@ private:
 	
 	// Für Berechnung zur Laufzeit
 	float correctionFactor;																			// (Empirischer) Korrekturfaktor um Stellsignal runterzuskalieren: Spielraum lassen
-	int* trackVelocityNoBraking;																	// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke ohne Bremsalgorithmus
-	int* trackVelocityDirection1;																			// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 1)
-	int* trackVelocityDirection2;																		// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 2)
-	int* trackVelocityDirectionDrive;
+	std::vector<int> trackVelocityNoBraking;														// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke ohne Bremsalgorithmus
+	std::vector<int> trackVelocityDirection1;														// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 1)
+	std::vector<int> trackVelocityDirection2;														// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 2)
+	std::vector<int> *trackVelocityDirectionDrive;
 	std::vector<cv::Point2f>* cartesianTrackPoints;													// Array mit allen Streckenpunkten in kartesischer Form
 	float pointDistance;																			// Abstand zwischen zwei Punkten (Trackpoints), Einheit [m]
 	bool stop = false;																				// Stopt den Thread
@@ -59,6 +58,6 @@ private:
 	float twiceSignedArea(cv::Point2f point1, cv::Point2f point2, cv::Point2f point3);
 	void smoothTrackVelocity();
 	void calculateBreakpoints();
-	void outputArrayAsCSV(int* arrayToConvert, int length, std::string label);
+	void outputArrayAsCSV(const std::vector<int>& arrayToConvert, int length, std::string label);
 	void calculateMinmumControlInput();
 };

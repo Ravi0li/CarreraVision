@@ -42,11 +42,11 @@ CarControlDomiClass::CarControlDomiClass(cv::FileNode _para, InformationShareCla
 	this->minimumVelocity = (int)para["min_velocity"];
 	this->direction = 1;																					
 
-	trackVelocityNoBraking = new int[countTrackpoints];
-	trackVelocityDirection1 = new int[countTrackpoints];
-	trackVelocityDirection2 = new int[countTrackpoints];
+	trackVelocityNoBraking.resize(countTrackpoints, 0);
+	trackVelocityDirection1.resize(countTrackpoints, 0);
+	trackVelocityDirection2.resize(countTrackpoints, 0);
 
-	trackVelocityDirectionDrive = trackVelocityDirection1;
+	trackVelocityDirectionDrive = &trackVelocityDirection1;
 }
 
 // --------------------------------------------------------------------------
@@ -185,7 +185,7 @@ void CarControlDomiClass::calculateBreakpoints()
 		if (newVal < useVal) useVal = newVal;
 		newVal = trackVelocityNoBraking[(i - 4) % countTrackpoints];
 		if (newVal < useVal) useVal = newVal;
-		trackVelocityDirection2[i] = useVal;
+		trackVelocityDirection2[i-4] = useVal;
 	}
 
 	#ifdef DEBUG_CAR_CONTROL
@@ -200,7 +200,7 @@ void CarControlDomiClass::calculateBreakpoints()
 // --------------------------------------------------------------------------
 // Array als XML in Datei speichern zum Debuggen
 // --------------------------------------------------------------------------
-void CarControlDomiClass::outputArrayAsCSV(int* arrayToConvert, int length, std::string label)
+void CarControlDomiClass::outputArrayAsCSV(const std::vector<int>& arrayToConvert, int length, std::string label)
 {
 	std::ofstream fileHandle;
 
@@ -359,11 +359,11 @@ void CarControlDomiClass::loopingThread()
 	{
 		// Frameratenmessung
 		auto now = std::chrono::high_resolution_clock::now();
-		int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
+		int diff = (int)std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
 		if (diff > 1000)
 		{
 			frameMutex.lock();
-			frameRate = countFrame / (diff / 1000.0);
+			frameRate = (int)(countFrame / (diff / 1000.0));
 			frameMutex.unlock();
 			countFrame = 0;
 			startFrame = now;
@@ -384,40 +384,25 @@ void CarControlDomiClass::loopingThread()
 		position = infoPackage->GetPosition();
 		infoPackage->unlock();
 
-		if (trackVelocityDirectionDrive[position] <= 120)
-			delaySamples = 2;
-		else if (trackVelocityDirectionDrive[position] <= 160 && trackVelocityDirectionDrive[position] > 120)
-			delaySamples = 4;
-		else if (trackVelocityDirectionDrive[position] > 160)
-			delaySamples = 6;
-	
-
-		// Stellsignal per BT senden
-		if (channel == 1)
+		
+		// Prüfen ob eine Position bekannt ist
+		if (position != -1)
 		{
-			if (position != -1)
-			{
-				bluetoothObject->sendChannel1(direction * trackVelocityDirectionDrive[(position + delaySamples) % countTrackpoints]);
-			}
-			else
-			{
-				bluetoothObject->sendChannel1(direction * minimumVelocity);
-			}
+			// Delay erstellen
+			if ((*trackVelocityDirectionDrive)[position] <= 120)
+				delaySamples = 2;
+			else if ((*trackVelocityDirectionDrive)[position] <= 160 && (*trackVelocityDirectionDrive)[position] > 120)
+				delaySamples = 4;
+			else if ((*trackVelocityDirectionDrive)[position] > 160)
+				delaySamples = 6;
 
-			//std::cout << "Sende Kanal 1" << std::endl;
+			// Stellsignal erstellen
+			bluetoothObject->setSendValue(channel, direction * (*trackVelocityDirectionDrive)[(position + delaySamples) % countTrackpoints]);
 		}
-		else if (channel == 2)
+		else
 		{
-			if (position != -1)
-			{
-				bluetoothObject->sendChannel2(direction * trackVelocityDirectionDrive[(position + delaySamples) % countTrackpoints]);
-			}
-			else
-			{
-				bluetoothObject->sendChannel2(direction * minimumVelocity);
-			}
-
-			//std::cout << "Sende Kanal 2" << std::endl;
+			// kein stellsignal bekannt, also Standardwert
+			bluetoothObject->setSendValue(channel, direction * minimumVelocity);
 		}
 	}
 }
@@ -439,27 +424,17 @@ void CarControlDomiClass::stopThread()
 }
 
 // --------------------------------------------------------------------------
-// Aufräumen
-// --------------------------------------------------------------------------
-CarControlDomiClass::~CarControlDomiClass()
-{
-	//delete[] trackVelocityNoBraking;
-	//delete[] trackVelocityDirection1;
-	//delete[] trackVelocityDirection2;
-}
-
-// --------------------------------------------------------------------------
 // 
 // --------------------------------------------------------------------------
 void CarControlDomiClass::ChangeVelocityDirection()
 {
-	if (trackVelocityDirectionDrive == trackVelocityDirection1)
+	if (trackVelocityDirectionDrive == &trackVelocityDirection1)
 	{
-		trackVelocityDirectionDrive = trackVelocityDirection2;
+		trackVelocityDirectionDrive = &trackVelocityDirection2;
 	}
-	else if (trackVelocityDirectionDrive == trackVelocityDirection2)
+	else if (trackVelocityDirectionDrive == &trackVelocityDirection2)
 	{
-		trackVelocityDirectionDrive = trackVelocityDirection1;
+		trackVelocityDirectionDrive = &trackVelocityDirection1;
 	}
 
 	infoPackage->lock();

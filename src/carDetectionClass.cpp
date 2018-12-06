@@ -328,12 +328,12 @@ void CarDetection::resetRefValue()
 void CarDetection::paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *lane, InformationShareClass *car)
 {
 	car->lock();
-	int* values = car->GetTrackVelocity();
+	std::vector<int> *values = car->GetTrackVelocity();
 	car->unlock();
 	for (int i = 0; i < lane->size(); i++)
 	{
 		cv::Point2f pos((*lane)[i].x * downScall, (*lane)[i].y * downScall);
-		cv::circle(*image, pos, 2, hsvScalar(0, values[i], 255), 2);
+		cv::circle(*image, pos, 2, hsvScalar(0, (*values)[i], 255), 2);
 	}
 }
 

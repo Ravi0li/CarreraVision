@@ -34,7 +34,7 @@ void InformationShareClass::SetTime(int time)
 	this->time = time;
 }
 
-void InformationShareClass::SetTrackVelocity(int* trackVelocity)
+void InformationShareClass::SetTrackVelocity(std::vector<int> *trackVelocity)
 {
 	this->trackVelocity = trackVelocity;
 }
@@ -59,7 +59,7 @@ int InformationShareClass::GetTime()
 	return time;
 }
 
-int* InformationShareClass::GetTrackVelocity()
+std::vector<int>* InformationShareClass::GetTrackVelocity()
 {
 	return this->trackVelocity;
 }

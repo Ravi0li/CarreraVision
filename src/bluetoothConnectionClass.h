@@ -13,17 +13,18 @@ public:
 	~BluetoothConnectionClass();
 	
 	// Methoden
-	int connect();
-	int disconnect();
-	void sendChannel1(int set);
-	void sendChannel2(int set);
-	void sendChannel12(int set1, int set2);
+	int connectBLE();
+	int disconnectBLE();
+	void setSendValue(int channel, int set);
+	void sendValuesBothChannels();
+	void loopingThread();
+	void stopThread();
+	int getFrameRate();
 	int getSetValue1();
 	int getSetValue2();
 
 private:
 	cv::FileNode para;				// Parameter aus XML
-	boost::mutex mtx_;
 	boost::asio::io_service* io;	// IO Service für BT-Verbindung
 	boost::asio::serial_port* port;	// Serieller Port für BT-Verbindung
 	std::string serialPortString;	// Zeichenkette für COM-Port
@@ -31,8 +32,19 @@ private:
 	int setValue1, setValue2;		// Aktuelle Stellwerte für beide Kanäle
 	char* sendString;				// Zeichenkette mit Stellwerten für beide Kanäle
 	int sendStringLength;			// Länge der Zeichenkette mit Stellwerten
+	bool connected = false;			// Zeigt an ob eine Verbindung besteht
+	std::mutex lockValues;			// sperrt die Values wärend des senden
 	
+	// Frameraten messung
+	std::chrono::high_resolution_clock::time_point startFrame;	// Zeit zur Frameratenmessung
+	int countFrame = 0;											// Zähler für Frameratenanzeige
+	int frameRate = 0;											// Aktuelle Framerate
+	std::mutex frameMutex;										// Mutex für die Framerate
+	bool stop = false;											// anhalten des Threads
+
 	// Methoden
 	void updateSendString();	
 
 };
+
+typedef void (BluetoothConnectionClass::*pf_i) (int);

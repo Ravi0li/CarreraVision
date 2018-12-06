@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/thread/mutex.hpp>
+#include <vector>
 
 class InformationShareClass
 {
@@ -8,7 +9,7 @@ private:
 	int carPosition;
 	int carType;
 	long time;
-	int* trackVelocity;
+	std::vector<int> *trackVelocity;
 	int picID;
 public:
 	InformationShareClass();
@@ -17,11 +18,11 @@ public:
 	void SetPosition(int carPosition);
 	void SetType(int carType);
 	void SetTime(int time);
-	void SetTrackVelocity(int* trackVelocity);
+	void SetTrackVelocity(std::vector<int> *trackVelocity);
 	void DecPicID();
 	int GetPosition();
 	int GetType();
 	int GetTime();
-	int* GetTrackVelocity();
+	std::vector<int>* GetTrackVelocity();
 	int GetPicID();
 };
