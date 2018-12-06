@@ -443,7 +443,7 @@ void CarControlDomiClass::stopThread()
 // --------------------------------------------------------------------------
 CarControlDomiClass::~CarControlDomiClass()
 {
-	delete[] trackVelocityNoBraking;
+	//delete[] trackVelocityNoBraking;
 	//delete[] trackVelocityDirection1;
 	//delete[] trackVelocityDirection2;
 }

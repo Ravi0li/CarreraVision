@@ -55,7 +55,12 @@ int main(int argc, const char** argv)
 			return -1;
 		}
 		cv::namedWindow("Input", CV_GUI_NORMAL);
-		cv::imshow("Input", image);
+		for (int i = 0; i < 20; i++)
+		{
+			cap >> image;
+			cv::imshow("Input", image);
+			cv::waitKey(30);
+		}
 	}
 	else
 	{
@@ -142,10 +147,30 @@ int main(int argc, const char** argv)
 	param.carControlDomi1 = &carControlDomi1;
 	param.carControlDomi2 = &carControlDomi2;
 	cv::setMouseCallback("Result", onMouse, &param);
+
+	// Grundparameter
+	int key = cv::waitKey(30);
+	auto startFrame = std::chrono::high_resolution_clock::now();
+	int frameRate = 0, countFrame = 0;
+
 	do
 	{
+		// Frameratenmessung
+		auto now = std::chrono::high_resolution_clock::now();
+		int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
+		if (diff > 1000)
+		{
+			frameRate = countFrame / (diff / 1000.0);
+			countFrame = 0;
+			startFrame = now;
+		}
+		countFrame++;
+
+		// Anzeige
 		cv::Mat imageText;
+		carDetection.frameOutLock();
 		image.copyTo(imageText);
+		carDetection.frameOutUnlock();
 		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Kallibrieren", cv::Point(20, 100), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
@@ -153,11 +178,17 @@ int main(int argc, const char** argv)
 		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-		std::string outFps = "FPS: " + std::to_string(carDetection.getFrameRate()) + " " + std::to_string(carControlDomi1.getFrameRate()) + " " + std::to_string(carControlDomi2.getFrameRate());
+		std::string outFps = "FPS: V" + std::to_string(frameRate) + " D" + std::to_string(carDetection.getFrameRate()) + " C1" + std::to_string(carControlDomi1.getFrameRate()) + " C2" + std::to_string(carControlDomi2.getFrameRate());
 		cv::putText(imageText, outFps , cv::Point(20, 250), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
 
-	} while (-1 == cv::waitKey(30));
+		// Debugausgabe in Datei
+		key = cv::waitKey(10);
+		infoPackage1.DecPicID();
+		if (100 == key)
+			carDetection.startDebugSave();
+		carDetection.saveDebugBufferIfFull();
+	} while (-1 == key || key == 100);
 
 	// Warten bis threads ordnungsgem‰ﬂ beendet sind
 	carDetection.stopThread();

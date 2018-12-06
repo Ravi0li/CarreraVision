@@ -21,6 +21,8 @@ CarDetection::CarDetection(cv::FileNode _para, std::vector<cv::Point2f> lane1s, 
 	mid2.insert(mid2.begin(), lane2.size(), cv::Vec3b());
 	// Zeichenmodus
 	paintMode = 1;
+	// debugbuffer ausschalten
+	debugBufferOn = false;
 }
 
 // --------------------------------------------------------------------------
@@ -44,10 +46,10 @@ void CarDetection::setInfoPackage(InformationShareClass *laneShare1, Information
 	analysePattern.push_back(cv::Point2f(0,  0));
 	for (int i = 1; i <= (int)para["detection_area_size"]; i++)
 	{
-		analysePattern.push_back(cv::Point2f(i, 0));
-		analysePattern.push_back(cv::Point2f(-i, 0));
-		analysePattern.push_back(cv::Point2f(0, i));
-		analysePattern.push_back(cv::Point2f(0, -i));
+		analysePattern.push_back(cv::Point2f((float)i, 0));
+		analysePattern.push_back(cv::Point2f((float)-i, 0));
+		analysePattern.push_back(cv::Point2f(0, (float)i));
+		analysePattern.push_back(cv::Point2f(0, (float)-i));
 	}
 }
 
@@ -100,8 +102,8 @@ bool CarDetection::setSource(std::string file)
 			std::cout << "FEHLER: Datei nicht gefunden mit dem Videostream" << std::endl;
 			return false;
 		}
-		float width = cap->get(CV_CAP_PROP_FRAME_WIDTH);
-		downScall = width / 3280.0;
+		float width = static_cast<float>(cap->get(CV_CAP_PROP_FRAME_WIDTH));
+		downScall = width / 3280.0f;
 		std::cout << "Videostream wird aus Datei geladen" << std::endl;
 	}
 	return true;
@@ -125,11 +127,11 @@ void CarDetection::loopingThread()
 	do {
 		// Frameratenmessung
 		auto now = std::chrono::high_resolution_clock::now();
-		int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
+		int diff = (int)std::chrono::duration_cast<std::chrono::milliseconds>(now - startFrame).count();
 		if (diff > 1000)
 		{
 			frameMutex.lock();
-			frameRate = countFrame / (diff/1000.0);
+			frameRate = static_cast<int>(countFrame / (diff/1000.0));
 			frameMutex.unlock();
 			countFrame = 0;
 			startFrame = now;
@@ -164,11 +166,40 @@ void CarDetection::loopingThread()
 				paintTrackVelocity(&image, &lane2, car2);
 			}
 			// Ergebniss anzeigen
+			outImageMutex.lock();
 			image.copyTo(*outImage);
+			outImageMutex.unlock();
+			// Ergebniss abspeichern zum debuggen
+			if (debugBufferOn)
+			{
+				cv::Mat safeNewImg;
+				image.copyTo(safeNewImg);
+				debugBuffer.emplace_back(safeNewImg);
+				if (debugBuffer.size() == 50)
+					debugBufferOn = false;
+			}
 		}
 		// Delay <- Bei echtzeit entfernen!!!
 		//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	} while(!stop);
+}
+
+// --------------------------------------------------------------------------
+// speichert am ende alle Bilder des Debug vorganges ab 
+// --------------------------------------------------------------------------
+void CarDetection::saveDebugBufferIfFull()
+{
+	if (debugBufferOn == false && debugBuffer.size() != 0)
+	{
+		int i = 0;
+		for (cv::Mat img : debugBuffer)
+		{
+			i++;
+			std::cout << "Debugausgabe Nr. " << std::to_string(i) << " erstellt" << std::endl;
+			cv::imwrite("img" + std::to_string(i) + ".jpg", img);
+		}
+		debugBuffer.clear();
+	}
 }
 
 // --------------------------------------------------------------------------
@@ -194,7 +225,7 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 		int r = (int)abs(p[0] - (*mid)[i][0]);
 		int g = (int)abs(p[1] - (*mid)[i][1]);
 		int b = (int)abs(p[2] - (*mid)[i][2]);
-		int dif = (r + g + b) / analysePattern.size();
+		int dif = (r + g + b) / (int)analysePattern.size();
 		// Prüfen ob Punkt getriggert ist
 		if (dif > maxTrig)
 		{
@@ -269,7 +300,7 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 // --------------------------------------------------------------------------
 cv::Vec3i CarDetection::getPixel(cv::Mat image, cv::Point2f p, cv::Point2f offset)
 {
-	return image.at<cv::Vec3b>((int)(p.y * downScall) + offset.x, (int)(p.x * downScall) + offset.y);
+	return image.at<cv::Vec3b>((int)(p.y * downScall) + (int)offset.x, (int)(p.x * downScall) + (int)offset.y);
 }
 
 // --------------------------------------------------------------------------

@@ -23,4 +23,8 @@ void DebugWinOrganizer::addWindow(cv::Mat image, std::string title)
 	cv::resizeWindow(title, winSizeX, winSizeY);
 	cv::moveWindow(title, posX, posY);
 	cv::imshow(title, image);
+
+	//static int i = 1;
+	//cv::imwrite(std::to_string(i)+".jpg", image);
+	//i++;
 }

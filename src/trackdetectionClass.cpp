@@ -978,7 +978,7 @@ void TrackDetection::calLanesCrossLinesFilter(std::vector<std::pair<cv::Point2f,
 	}
 	// Pixel pro Meter berechnen und Abstand zwischen zwei Punkten am ende
 	float trackWidth = 0.25;
-	float pixlePerMeter = sqrt((float)maxPos*pow(5,2)) / trackWidth;
+	float pixlePerMeter = sqrt((float)maxPos*(float)pow(5,2)) / trackWidth;
 	pixelBetweenPoints = (int)(pointDistanceInMeter * pixlePerMeter);
 	std::cout << "Abstand zwischen den Auswertepunkten: " << pixelBetweenPoints << std::endl;
 

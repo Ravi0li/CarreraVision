@@ -19,6 +19,10 @@ public:
 	void resetRefValue();
 	void ChangePaintMode();
 	int getFrameRate();
+	void frameOutLock() { outImageMutex.lock(); };
+	void frameOutUnlock() { outImageMutex.unlock(); };
+	void startDebugSave() { if (debugBuffer.size() == 0) debugBufferOn = true; };
+	void saveDebugBufferIfFull();
 
 private:
 	void getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid);
@@ -37,6 +41,8 @@ private:
 	bool firstRound;						// Ersten durchlauf erkennen
 	cv::VideoCapture *cap;					// Videoquelle
 	cv::Mat *outImage;						// Ausgabebild
+	std::vector<cv::Mat> debugBuffer;		// temporäre Bilder zum debuggen
+	bool debugBufferOn;						// sollen die Bilder abgespeichert werden		
 	bool stop = false;						// Stoppen der Endlosschleife
 	int paintMode;							// Was soll gezeichnet werden
 	float downScall = 0.25;					// Wie viel kleiner ist der Videostream
@@ -44,6 +50,7 @@ private:
 	int countFrame = 0;						// Zähler für Frameratenanzeige
 	int frameRate = 0;						// Aktuelle Framerate
 	std::mutex frameMutex;					// Mutex für die Framerate
+	std::mutex outImageMutex;				// Mutex für den OutFrame
 };
 
 //int trackpoints;

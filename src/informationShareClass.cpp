@@ -6,6 +6,7 @@ InformationShareClass::InformationShareClass()
 	carType = 0;
 	time = 0;
 	trackVelocity = NULL;
+	picID = 0;
 }
 
 void InformationShareClass::lock() 
@@ -38,6 +39,11 @@ void InformationShareClass::SetTrackVelocity(int* trackVelocity)
 	this->trackVelocity = trackVelocity;
 }
 
+void InformationShareClass::DecPicID()
+{
+	picID++;
+}
+
 int InformationShareClass::GetPosition()
 {
 	return carPosition;
@@ -56,4 +62,9 @@ int InformationShareClass::GetTime()
 int* InformationShareClass::GetTrackVelocity()
 {
 	return this->trackVelocity;
+}
+
+int InformationShareClass::GetPicID()
+{
+	return picID;
 }
