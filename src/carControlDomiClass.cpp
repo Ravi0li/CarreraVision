@@ -129,7 +129,7 @@ void CarControlDomiClass::smoothTrackVelocity()
 void CarControlDomiClass::calculateBreakpoints()
 {
 	// Wie viel soll in die zukunft geschaut werden
-	int showInfFutureFactor = (int)para["break_show_in_future_width"];;
+	int showInfFutureFactor = (int)para["break_show_in_future_width"];
 
 	// Berechnen der Zukunftswerte
 	if (countTrackpoints > 2 * showInfFutureFactor)
@@ -137,20 +137,40 @@ void CarControlDomiClass::calculateBreakpoints()
 		// Richtung 1
 		trackVelocityDirection1.clear();
 		std::deque<int> area1(trackVelocityNoBraking.end() - showInfFutureFactor, trackVelocityNoBraking.end());
+		bool breakNow = false;
 		for (size_t i = 0; i < countTrackpoints; ++i)
 		{
 			area1.push_back(trackVelocityNoBraking[i]);
 			int minValue = *std::min_element(area1.begin(), area1.end());
+			int dif = area1.back() - minValue;
+			int dif2 = trackVelocityNoBraking[(i+showInfFutureFactor) % trackVelocityNoBraking.size()] - minValue;
+			if (dif > (int)para["by_big_diff_break_trigger"] && (dif2 > (int)para["by_big_diff_break_trigger"] || breakNow))
+			{
+				minValue *= (float)para["by_big_diff_break_factor"];
+				breakNow = true;
+			}
+			else
+				breakNow = false;
 			trackVelocityDirection1.push_back(minValue);
 			area1.pop_front();
 		}
 		// Richtung 2
 		std::vector<int> reverseArray;
 		std::deque<int> area2(trackVelocityNoBraking.begin(), trackVelocityNoBraking.begin() + showInfFutureFactor);
+		breakNow = false;
 		for (int i = countTrackpoints-1; i >= 0; --i)
 		{
 			area2.push_front(trackVelocityNoBraking[i]);
 			int minValue = *std::min_element(area2.begin(), area2.end());
+			int dif = area2.front() - minValue;
+			int dif2 = trackVelocityNoBraking[(i+showInfFutureFactor) % trackVelocityNoBraking.size()] - minValue;
+			if (dif > (int)para["by_big_diff_break_trigger"] && dif2 > ((int)para["by_big_diff_break_trigger"] || breakNow))
+			{
+				minValue *= (float)para["by_big_diff_break_factor"];
+				breakNow = true;
+			}
+			else
+				breakNow = false;
 			reverseArray.emplace_back(minValue);
 			area2.pop_back();
 		}
@@ -362,16 +382,18 @@ void CarControlDomiClass::loopingThread()
 		// Prüfen ob eine Position bekannt ist
 		if (position != -1)
 		{
-			// Delay erstellen
-			if ((*trackVelocityDirectionDrive)[position] <= 120)
-				delaySamples = 2;
-			else if ((*trackVelocityDirectionDrive)[position] <= 160 && (*trackVelocityDirectionDrive)[position] > 120)
-				delaySamples = 4;
-			else if ((*trackVelocityDirectionDrive)[position] > 160)
-				delaySamples = 6;
-
+			if ((*trackVelocityDirectionDrive)[position] <= 100)
+				delaySamples = (int)para["delay_samples_slow"];
+			else
+				delaySamples = (int)para["delay_samples_fast"];
+			if (trackVelocityDirectionDrive == &trackVelocityDirection1)
+				delaySamples = -delaySamples;
+			
 			// Stellsignal erstellen
-			bluetoothObject->setSendValue(channel, direction * (*trackVelocityDirectionDrive)[(position + delaySamples) % countTrackpoints]);
+			int usePos = position + delaySamples;
+			if (usePos < 0) usePos += trackVelocityDirectionDrive->size();
+			usePos = usePos % countTrackpoints;
+			bluetoothObject->setSendValue(channel, direction * (*trackVelocityDirectionDrive)[usePos]);
 		}
 		else
 		{

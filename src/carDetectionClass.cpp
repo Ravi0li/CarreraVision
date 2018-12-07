@@ -89,9 +89,10 @@ bool CarDetection::setSource(std::string file)
 		cap->set(CV_CAP_PROP_FRAME_WIDTH, 820); //1640
 		cap->set(CV_CAP_PROP_FRAME_HEIGHT, 616);  //1232
 		cap->set(CV_CAP_PROP_FPS, 40);
-		cap->set(CV_CAP_PROP_BUFFERSIZE, 1);
-		cap->set(CV_CAP_PROP_ISO_SPEED, 200);
-		cap->set(CV_CAP_PROP_EXPOSURE, 1);
+		//cap->set(CV_CAP_PROP_BUFFERSIZE, 1);
+		//cap->set(CV_CAP_PROP_ISO_SPEED, 200);
+		cap->set(CV_CAP_PROP_EXPOSURE, 0.25);
+		//cap->set(CV_CAP_PROP_AUTO_EXPOSURE, 0);
 		fromFile = false;
 		std::cout << "Videostream von der Kamera wurde gestartet" << std::endl;
 	}
@@ -144,6 +145,8 @@ void CarDetection::loopingThread()
 
 		if (!image.empty())
 		{
+			cv::Mat paintImage;
+			image.copyTo(paintImage);
 			// Beim ersten Durchlauf Referenzpixel lesen
 			if (firstRound)
 			{
@@ -154,29 +157,29 @@ void CarDetection::loopingThread()
 			}
 			// Auswerten welche Pixel getriggert sind
 			std::vector<bool> trig1(lane1.size(), false);
-			getTrigerInfo(&image, &lane1, &mid1, &trig1);
+			getTrigerInfo(&image, &paintImage, &lane1, &mid1, &trig1);
 			std::vector<bool> trig2(lane2.size(), false);
-			getTrigerInfo(&image, &lane2, &mid2, &trig2);
+			getTrigerInfo(&image, &paintImage, &lane2, &mid2, &trig2);
 			// Auswerten der Triggerergebnisse
-			getTrigerResult(&image, &lane1, &trig1, car1);
-			getTrigerResult(&image, &lane2, &trig2, car2);
+			getTrigerResult(&image, &paintImage, &lane1, &trig1, car1);
+			getTrigerResult(&image, &paintImage, &lane2, &trig2, car2);
 			// Zeichnet Beschleunigungspunkte
 			if (paintMode == 2)
 			{
-				paintTrackVelocity(&image, &lane1, car1);
-				paintTrackVelocity(&image, &lane2, car2);
+				paintTrackVelocity(&paintImage, &lane1, car1);
+				paintTrackVelocity(&paintImage, &lane2, car2);
 			}
 			// Ergebniss anzeigen
 			outImageMutex.lock();
-			image.copyTo(*outImage);
+			paintImage.copyTo(*outImage);
 			outImageMutex.unlock();
 			// Ergebniss abspeichern zum debuggen
 			if (debugBufferOn)
 			{
 				cv::Mat safeNewImg;
-				image.copyTo(safeNewImg);
+				paintImage.copyTo(safeNewImg);
 				debugBuffer.emplace_back(safeNewImg);
-				if (debugBuffer.size() == 50)
+				if (debugBuffer.size() == 100)
 					debugBufferOn = false;
 			}
 		}
@@ -216,7 +219,7 @@ void CarDetection::getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, s
 // --------------------------------------------------------------------------
 // Prüfen welche Punkte getriggert sind
 // --------------------------------------------------------------------------
-void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig)
+void CarDetection::getTrigerInfo(cv::Mat *image, cv::Mat *paintImage, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig)
 {
 	// zu Triggernder Grenzwert
 	int maxTrig = (int)para["trigger_value"];
@@ -236,8 +239,10 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 			// Trigger merken
 			(*trig)[i] = true;
 			// Punkt einzeichnen
-			if (paintMode == 1)
-				cv::circle(*image, pos, 2, cv::Scalar(255, 0, 0), 2);
+			if (paintMode == 1) 
+			{
+				cv::circle(*paintImage, pos, 2, cv::Scalar(255, 0, 0), 2);
+			}
 		}
 		else
 		{
@@ -246,7 +251,9 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 			(*mid)[i] = (*mid)[i] * (1.0-adjValue) + getAllPixel(*image, (*lane)[i]) * adjValue;
 			// Punkt einzeichnen
 			if (paintMode == 1)
-				cv::circle(*image, pos, 2, cv::Scalar(255, 255, 255), 2);
+			{
+				cv::circle(*paintImage, pos, 2, cv::Scalar(255, 255, 255), 2);
+			}	
 		}
 	}
 }
@@ -254,7 +261,7 @@ void CarDetection::getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane,
 // --------------------------------------------------------------------------
 // Triggerpunkte auswerten
 // --------------------------------------------------------------------------
-void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<bool> *trig, InformationShareClass *car)
+void CarDetection::getTrigerResult(cv::Mat *image, cv::Mat *paintImage, std::vector<cv::Point2f> *lane, std::vector<bool> *trig, InformationShareClass *car)
 {
 	std::vector<int> truePos;
 	for (int i = 0; i < lane->size(); i++)
@@ -293,7 +300,7 @@ void CarDetection::getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lan
 	if (car->GetPosition() != -1 && paintMode == 1)
 	{
 		cv::Point2f pos((*lane)[car->GetPosition()].x * downScall, (*lane)[car->GetPosition()].y * downScall);
-		cv::circle(*image, pos, 5, cv::Scalar(0, 0, 255), 5);
+		cv::circle(*paintImage, pos, 5, cv::Scalar(0, 0, 255), 5);
 	}
 }
 
@@ -336,6 +343,7 @@ void CarDetection::paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *
 	{
 		cv::Point2f pos((*lane)[i].x * downScall, (*lane)[i].y * downScall);
 		cv::circle(*image, pos, 2, hsvScalar(0, (*values)[i], 255), 2);
+		cv::putText(*image, std::to_string((*values)[i]) , pos, cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255), 1);
 	}
 }
 

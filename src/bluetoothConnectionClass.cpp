@@ -116,7 +116,8 @@ void BluetoothConnectionClass::updateSendString()
 	{
 		std::lock_guard<std::mutex> lockit(lockValues);
 		std::stringstream stream;
-		stream << setValue1;
+		// Invertierung wegen Hardware fehler?
+		stream << -setValue1;
 		stream << ",";
 		stream << setValue2;
 		str = stream.str();
