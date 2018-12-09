@@ -144,7 +144,7 @@ void TrackDetection::calHSVRange(cv::Mat *image)
 	{
 		void operator ()(cv::Vec3b &pixel, const int * position) const
 		{
-			int minS = (int)(180 - 0.7 * pixel[2]);
+			int minS = (int)(180 - 0.6 * pixel[2]);
 			if (pixel[0] > 115 && pixel[0] < 145 && pixel[1] > minS)
 				pixel[2] = pixel[1] = pixel[0] = 255;
 			else

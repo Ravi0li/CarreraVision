@@ -50,9 +50,9 @@
 
   <!-- Fahrzeugerkennung -->
   <car_detection>
-    <detection_area_size>1</detection_area_size>
-    <trigger_value>100</trigger_value>
-    <adjust_value_if_not_triggert>0.3</adjust_value_if_not_triggert>
+    <detection_area_size>5</detection_area_size>
+    <trigger_value>60</trigger_value>
+    <adjust_value_if_not_triggert>0.01</adjust_value_if_not_triggert>
   </car_detection>
 
   <!-- Fahrzeugerkennung -->
@@ -63,14 +63,24 @@
 
   <!-- Fahrzeugsteuerung vom Domi -->
   <car_control_domi>
-    <window_size_soothless>7</window_size_soothless>
-		<break_show_in_future_width>4</break_show_in_future_width>
+    <window_size_soothless>5</window_size_soothless>
+    
+    <!-- blaues Auto ohne Licht -->
+    
+    <break_show_in_future_width>8</break_show_in_future_width>
+    <by_big_diff_break_trigger>80</by_big_diff_break_trigger>
+    <by_big_diff_break_factor>0.3</by_big_diff_break_factor>
+    
+    <delay_samples_slow>4</delay_samples_slow>
+    <delay_samples_fast>7</delay_samples_fast>
+    
     <min_velocity>0</min_velocity>
-    <max_velocity>180</max_velocity>
+    <max_velocity>210</max_velocity>
+    
     <ref_car_mass>0.100</ref_car_mass>
     <actual_car_mass>0.150</actual_car_mass>
-    <ref_radius>0.25</ref_radius>
-    <ref_velocity>120</ref_velocity>
+    <ref_radius>0.20</ref_radius>
+    <ref_velocity>130</ref_velocity>
     <braking_factor>20.0</braking_factor>
     <correction_factor>1.00</correction_factor>
   </car_control_domi>

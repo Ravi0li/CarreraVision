@@ -26,8 +26,8 @@ public:
 
 private:
 	void getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid);
-	void getTrigerInfo(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig);
-	void getTrigerResult(cv::Mat *image, std::vector<cv::Point2f> *lane, std::vector<bool> *trig, InformationShareClass *car);
+	void getTrigerInfo(cv::Mat *image, cv::Mat *paintImage, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid, std::vector<bool> *trig);
+	void getTrigerResult(cv::Mat *image, cv::Mat *paintImage, std::vector<cv::Point2f> *lane, std::vector<bool> *trig, InformationShareClass *car);
 	cv::Vec3i getPixel(cv::Mat image, cv::Point2f p, cv::Point2f offset);
 	cv::Vec3i getAllPixel(cv::Mat image, cv::Point2f p);
 	void paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *lane, InformationShareClass *car);

@@ -55,7 +55,7 @@ int main(int argc, const char** argv)
 			return -1;
 		}
 		cv::namedWindow("Input", CV_GUI_NORMAL);
-		for (int i = 0; i < 20; i++)
+		for (int i = 0; i < 2; i++)
 		{
 			cap >> image;
 			cv::imshow("Input", image);
@@ -175,16 +175,15 @@ int main(int argc, const char** argv)
 		cv::putText(imageText, "Stellsignal 1: " + std::to_string(BLECon.getSetValue1()), cv::Point(20, 40), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Stellsignal 2: " + std::to_string(BLECon.getSetValue2()), cv::Point(20, 70), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
 		cv::putText(imageText, "Kallibrieren", cv::Point(20, 100), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung 1 Richtung", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung 2 Richtung", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
-		cv::putText(imageText, "Steuerung Aus. Rich", cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Steuerung Richtung aendern", cv::Point(20, 130), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "Ansicht umschalten", cv::Point(20, 160), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, "View Richtung aendern", cv::Point(20, 190), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
 		std::string outFps = "FPS: V" + std::to_string(frameRate) + 
 			                     " D" + std::to_string(carDetection.getFrameRate()) + 
 			                    " 1C" + std::to_string(carControlDomi1.getFrameRate()) + 
 			                    " 2C" + std::to_string(carControlDomi2.getFrameRate()) + 
 			                     " B" + std::to_string(BLECon.getFrameRate());
-		cv::putText(imageText, outFps , cv::Point(20, 250), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
+		cv::putText(imageText, outFps , cv::Point(20, 220), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255), 2);
 		cv::imshow("Result", imageText);
 
 		// Debugausgabe in Datei
@@ -217,17 +216,17 @@ static void onMouse(int event, int x, int y, int, void* param)
 		// Referenzpunkte neu berechnen
 		if (y > 80 && y < 100)
 			paramOnMouse->carDetection->resetRefValue();
-		// Kanal 1 schalten
+		// Kanal 1 & 2schalten
 		if (y > 110 && y < 130)
+		{
 			paramOnMouse->carControlDomi1->toggleDirection();
-		// Kanal 2 schalten
-		if (y > 140 && y < 160)
 			paramOnMouse->carControlDomi2->toggleDirection();
+		}
 		// Ansicht umschalten
-		if (y > 170 && y < 190)
+		if (y > 140 && y < 160)
 			paramOnMouse->carDetection->ChangePaintMode();
 		// Ansicht umschalten
-		if (y > 200 && y < 220)
+		if (y > 170 && y < 190)
 		{
 			paramOnMouse->carControlDomi1->ChangeVelocityDirection();
 			paramOnMouse->carControlDomi2->ChangeVelocityDirection();
