@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <thread>
 #include <deque>
+#include <numeric>       // accumulate
 
 #ifdef DEBUG_CAR_CONTROL
 #include <fstream>
@@ -40,7 +41,7 @@ CarControlDomiClass::CarControlDomiClass(cv::FileNode _para, InformationShareCla
 	this->bluetoothObject = bluetoothObject;
 	this->channel = channel;
 	this->pointDistance = pointDistance;
-	this->minimumVelocity = (int)para["min_velocity"];
+	this->minimumVelocity = 0;
 	this->direction = 1;																					
 
 	trackVelocityNoBraking.resize(countTrackpoints, 0);
@@ -126,55 +127,59 @@ void CarControlDomiClass::smoothTrackVelocity()
 // --------------------------------------------------------------------------
 // Berechnete Stellsignale mit Bremspunkten versehen
 // --------------------------------------------------------------------------
+std::vector<int> CarControlDomiClass::calculateBreakpointAlgorithm(const std::vector<int> &noBreaking)
+{
+	// Parameter
+	int showInFuture = (int)para["break_show_in_future_width"];
+	int showInFutureComplex = (int)para["complex_break_show_in_future_width"];
+
+	// Kleinsten Wert aus den nächsten 5 Werten nehmen
+	std::vector<int> simpleBreak;
+	std::deque<int> area(noBreaking.end() - showInFuture, noBreaking.end());
+	for (size_t i = 0; i < countTrackpoints; ++i)
+	{
+		area.push_back(noBreaking[i]);
+		int minValue = *std::min_element(area.begin(), area.end());
+		simpleBreak.push_back(minValue);
+		area.pop_front();
+	}
+
+	// verstärkes Bremsen bei großen Unterschieden
+	std::deque<int> complexBreak;
+	std::deque<int> areaSuper(simpleBreak.begin(), simpleBreak.begin() + showInFutureComplex);
+	for (int i = countTrackpoints - 1; i >= 0; --i)
+	{
+		areaSuper.push_front(simpleBreak[i]);
+		float avg = std::accumulate(areaSuper.begin(), areaSuper.end(), 0) / (float)areaSuper.size();
+		float factor = simpleBreak[i] / avg;
+		if (factor > 1)
+			factor = 1.f;
+		complexBreak.push_front((int)(simpleBreak[i] * factor));
+		areaSuper.pop_back();
+	}
+
+	// rueckgabe
+	std::vector<int> ret(complexBreak.begin(), complexBreak.end());
+	return ret;
+}
+
+// --------------------------------------------------------------------------
+// Berechnete Stellsignale mit Bremspunkten versehen
+// --------------------------------------------------------------------------
 void CarControlDomiClass::calculateBreakpoints()
 {
-	// Wie viel soll in die zukunft geschaut werden
-	int showInfFutureFactor = (int)para["break_show_in_future_width"];
-
 	// Berechnen der Zukunftswerte
-	if (countTrackpoints > 2 * showInfFutureFactor)
+	if (countTrackpoints > 10)
 	{
 		// Richtung 1
-		trackVelocityDirection1.clear();
-		std::deque<int> area1(trackVelocityNoBraking.end() - showInfFutureFactor, trackVelocityNoBraking.end());
-		bool breakNow = false;
-		for (size_t i = 0; i < countTrackpoints; ++i)
-		{
-			area1.push_back(trackVelocityNoBraking[i]);
-			int minValue = *std::min_element(area1.begin(), area1.end());
-			int dif = area1.back() - minValue;
-			int dif2 = trackVelocityNoBraking[(i+showInfFutureFactor) % trackVelocityNoBraking.size()] - minValue;
-			if (dif > (int)para["by_big_diff_break_trigger"] && (dif2 > (int)para["by_big_diff_break_trigger"] || breakNow))
-			{
-				minValue *= (float)para["by_big_diff_break_factor"];
-				breakNow = true;
-			}
-			else
-				breakNow = false;
-			trackVelocityDirection1.push_back(minValue);
-			area1.pop_front();
-		}
+		trackVelocityDirection1 = calculateBreakpointAlgorithm(trackVelocityNoBraking);
+
 		// Richtung 2
-		std::vector<int> reverseArray;
-		std::deque<int> area2(trackVelocityNoBraking.begin(), trackVelocityNoBraking.begin() + showInfFutureFactor);
-		breakNow = false;
-		for (int i = countTrackpoints-1; i >= 0; --i)
-		{
-			area2.push_front(trackVelocityNoBraking[i]);
-			int minValue = *std::min_element(area2.begin(), area2.end());
-			int dif = area2.front() - minValue;
-			int dif2 = trackVelocityNoBraking[(i+showInfFutureFactor) % trackVelocityNoBraking.size()] - minValue;
-			if (dif > (int)para["by_big_diff_break_trigger"] && dif2 > ((int)para["by_big_diff_break_trigger"] || breakNow))
-			{
-				minValue *= (float)para["by_big_diff_break_factor"];
-				breakNow = true;
-			}
-			else
-				breakNow = false;
-			reverseArray.emplace_back(minValue);
-			area2.pop_back();
-		}
-		std::reverse_copy(reverseArray.begin(), reverseArray.end(), trackVelocityDirection2.begin());
+		std::vector<int> trackVelocityNoBrakingReverse(countTrackpoints);
+		std::reverse_copy(trackVelocityNoBraking.begin(), trackVelocityNoBraking.end(), trackVelocityNoBrakingReverse.begin());
+		std::vector<int> trackVelocityDirection2Reverse = calculateBreakpointAlgorithm(trackVelocityNoBrakingReverse);
+		trackVelocityDirection2.reserve(countTrackpoints);
+		std::reverse_copy(trackVelocityDirection2Reverse.begin(), trackVelocityDirection2Reverse.end(), trackVelocityDirection2.begin());
 	}
 	else
 	{
@@ -368,19 +373,23 @@ void CarControlDomiClass::loopingThread()
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-		/*for (int i = 0; i < countTrackpoints; i++)
-		{
-			std::cout << i << ": ";
-			std::cout << trackVelocity[i] << std::endl;
-		}*/
-
 		infoPackage->lock();
 		position = infoPackage->GetPosition();
 		infoPackage->unlock();
 
+		// Prüft ob sich position verändert hat
+		if (position == samePosBrain)
+		{
+			samePosCounter++;
+		}
+		else
+		{
+			samePosBrain = position;
+			samePosCounter = 0;
+		}
 		
 		// Prüfen ob eine Position bekannt ist
-		if (position != -1)
+		if (position != -1 && samePosCounter < (int)para["default_speed_after_x_same_pos"])
 		{
 			if ((*trackVelocityDirectionDrive)[position] <= 100)
 				delaySamples = (int)para["delay_samples_slow"];
@@ -420,7 +429,7 @@ void CarControlDomiClass::stopThread()
 }
 
 // --------------------------------------------------------------------------
-// 
+// Wechseln der Fahrtrichtung
 // --------------------------------------------------------------------------
 void CarControlDomiClass::ChangeVelocityDirection()
 {

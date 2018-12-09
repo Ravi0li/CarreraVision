@@ -28,16 +28,18 @@ private:
 	float brakingFactor;	// Bestimmt die maximal mögliche Bremsstärke des Autos
 	
 	// Für Berechnung zur Laufzeit
-	float correctionFactor;																			// (Empirischer) Korrekturfaktor um Stellsignal runterzuskalieren: Spielraum lassen
-	std::vector<int> trackVelocityNoBraking;														// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke ohne Bremsalgorithmus
-	std::vector<int> trackVelocityDirection1;														// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 1)
-	std::vector<int> trackVelocityDirection2;														// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 2)
+	float correctionFactor;									// (Empirischer) Korrekturfaktor um Stellsignal runterzuskalieren: Spielraum lassen
+	std::vector<int> trackVelocityNoBraking;				// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke ohne Bremsalgorithmus
+	std::vector<int> trackVelocityDirection1;				// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 1)
+	std::vector<int> trackVelocityDirection2;				// (maximale) Kurvengeschwindigkeit für jeden Punkt auf der Strecke mit Bremsalgorithmus (Richtung 2)
 	std::vector<int> *trackVelocityDirectionDrive;
-	std::vector<cv::Point2f>* cartesianTrackPoints;													// Array mit allen Streckenpunkten in kartesischer Form
-	float pointDistance;																			// Abstand zwischen zwei Punkten (Trackpoints), Einheit [m]
-	bool stop = false;																				// Stopt den Thread
-	int minimumVelocity;																			// Kleinstes Stellsignal der Strecke
-	int direction;																					// Richtung: Kann drei Werte annehmen: 1, 0 , -1
+	std::vector<cv::Point2f>* cartesianTrackPoints;			// Array mit allen Streckenpunkten in kartesischer Form
+	float pointDistance;									// Abstand zwischen zwei Punkten (Trackpoints), Einheit [m]
+	bool stop = false;										// Stopt den Thread
+	int minimumVelocity;									// Kleinstes Stellsignal der Strecke
+	int direction;											// Richtung: Kann drei Werte annehmen: 1, 0 , -1
+	int samePosCounter = 0;									// Seit wie vielen Zyklen steht das Auto an der Position
+	int samePosBrain = -1;									// Auf welcher Position stand das auto beim letzten durchgang
 
 	// Frameraten messung
 	std::chrono::high_resolution_clock::time_point startFrame;	// Zeit zur Frameratenmessung
@@ -57,6 +59,7 @@ private:
 	float distanceBetweenPoints(cv::Point2f point1, cv::Point2f point2);
 	float twiceSignedArea(cv::Point2f point1, cv::Point2f point2, cv::Point2f point3);
 	void smoothTrackVelocity();
+	std::vector<int> calculateBreakpointAlgorithm(const std::vector<int>& noBreaking);
 	void calculateBreakpoints();
 	void outputArrayAsCSV(const std::vector<int>& arrayToConvert, int length, std::string label);
 	void calculateMinmumControlInput();

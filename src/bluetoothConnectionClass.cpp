@@ -200,6 +200,6 @@ BluetoothConnectionClass::~BluetoothConnectionClass()
 {
 	// Gebe allokierte Objekte wieder frei
 	delete io;
-	delete port;
+	//delete port;
 	delete[] sendString;
 }

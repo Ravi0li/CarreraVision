@@ -33,7 +33,7 @@ int main(int argc, const char** argv)
 
 	// Trackimage laden
 	cv::Mat image;
-	if (parser.has("trackrecord"))
+	if (parser.get<std::string>("trackimg").compare("") == 0)
 	{
 		// Trackimage von der Kamera
 		cv::VideoCapture cap(0);
@@ -97,13 +97,14 @@ int main(int argc, const char** argv)
 	}
 	image = trackDetection.getResultPicture();
 	std::vector<cv::Point2f> lane1, lane2;
-	trackDetection.getPointLines(&lane1, &lane2);	
+	trackDetection.getPointLines(&lane1, &lane2);
 
 	// Vorbereiten der Streckenauswertung
 	InformationShareClass infoPackage1, infoPackage2;
 	CarDetection carDetection(para["car_detection"], lane1, lane2);
 	carDetection.setInfoPackage(&infoPackage1, &infoPackage2);
 	carDetection.setOutputImage(&image);
+	carDetection.setSpeedNumbers(parser.has("speednumbers"));
 	if (!carDetection.setSource(parser.get<std::string>("trackvid")))
 	{
 		cv::waitKey(10);
@@ -195,9 +196,9 @@ int main(int argc, const char** argv)
 	} while (-1 == key || key == 100);
 
 	// Warten bis threads ordnungsgem‰ﬂ beendet sind
-	carDetection.stopThread();
 	carControlDomi1.stopThread();
 	carControlDomi2.stopThread();
+	carDetection.stopThread();
 	BLECon.stopThread();
 	tgroup.join_all();
 

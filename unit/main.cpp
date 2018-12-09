@@ -53,7 +53,7 @@ int main(int argc, const char** argv)
 		TrackDetection trackDetection(para["track_detection"]);
 		trackDetection.setUnitTestPic(true);
 		trackDetection.setPicture(imageIn);
-		trackDetection.calculate();
+		trackDetection.calculate(0.10f);
 		trackDetection.getUnitTestPic(&imageOut1, &imageOut2, &imageOut3, &imageOut4);
 		// Ergebnisse abspeichern
 		resizeSave(&outImage, 0, i - 1, imageIn);

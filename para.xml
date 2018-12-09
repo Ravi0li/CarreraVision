@@ -63,20 +63,18 @@
 
   <!-- Fahrzeugsteuerung vom Domi -->
   <car_control_domi>
-    <window_size_soothless>5</window_size_soothless>
+    <window_size_soothless>3</window_size_soothless>
     
-    <!-- blaues Auto ohne Licht -->
-    
-    <break_show_in_future_width>8</break_show_in_future_width>
-    <by_big_diff_break_trigger>80</by_big_diff_break_trigger>
-    <by_big_diff_break_factor>0.3</by_big_diff_break_factor>
+    <break_show_in_future_width>6</break_show_in_future_width>
+    <complex_break_show_in_future_width>8</complex_break_show_in_future_width>
     
     <delay_samples_slow>4</delay_samples_slow>
     <delay_samples_fast>7</delay_samples_fast>
     
-    <min_velocity>0</min_velocity>
     <max_velocity>210</max_velocity>
     
+		<default_speed_after_x_same_pos>10</default_speed_after_x_same_pos>
+		
     <ref_car_mass>0.100</ref_car_mass>
     <actual_car_mass>0.150</actual_car_mass>
     <ref_radius>0.20</ref_radius>

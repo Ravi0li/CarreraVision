@@ -5,6 +5,7 @@
 #include <vector>			// stc::vector
 #include <chrono>
 #include <mutex>
+#include <deque>
 
 class CarDetection
 {
@@ -23,6 +24,7 @@ public:
 	void frameOutUnlock() { outImageMutex.unlock(); };
 	void startDebugSave() { if (debugBuffer.size() == 0) debugBufferOn = true; };
 	void saveDebugBufferIfFull();
+	void setSpeedNumbers(bool show);
 
 private:
 	void getRefValues(cv::Mat image, std::vector<cv::Point2f> *lane, std::vector<cv::Vec3i> *mid);
@@ -31,6 +33,8 @@ private:
 	cv::Vec3i getPixel(cv::Mat image, cv::Point2f p, cv::Point2f offset);
 	cv::Vec3i getAllPixel(cv::Mat image, cv::Point2f p);
 	void paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *lane, InformationShareClass *car);
+	void createSpeedToColorTable();
+	void paintColorScale(cv::Mat *image);
 	cv::Scalar hsvScalar(double h, double s, double v);
 
 	cv::FileNode para;						// Parameter aus XML
@@ -52,14 +56,6 @@ private:
 	std::mutex frameMutex;					// Mutex für die Framerate
 	std::mutex outImageMutex;				// Mutex für den OutFrame
 	bool fromFile = true;					// ist der Stream aus einer Datei oder aus einem File
+	bool speedNumbers = false;				// Anzeigen der Geschwindigkeiten auf der Karte
+	std::deque<cv::Scalar> speedToColor;   // Farben für die anzeige verschiedener Geschwindigkeiten
 };
-
-//int trackpoints;
-//float trackAngles[trackpoints];
-
-
-//int carPosition;
-//int carType;
-
-//Oli: GUI, Fahrzeugerkennung
-//Domi: Threading, Bluetoothcom.

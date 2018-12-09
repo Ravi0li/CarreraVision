@@ -23,6 +23,8 @@ CarDetection::CarDetection(cv::FileNode _para, std::vector<cv::Point2f> lane1s, 
 	paintMode = 1;
 	// debugbuffer ausschalten
 	debugBufferOn = false;
+	// erstellen der Farbtabelle für Geschwindigkeiten
+	createSpeedToColorTable();
 }
 
 // --------------------------------------------------------------------------
@@ -89,10 +91,7 @@ bool CarDetection::setSource(std::string file)
 		cap->set(CV_CAP_PROP_FRAME_WIDTH, 820); //1640
 		cap->set(CV_CAP_PROP_FRAME_HEIGHT, 616);  //1232
 		cap->set(CV_CAP_PROP_FPS, 40);
-		//cap->set(CV_CAP_PROP_BUFFERSIZE, 1);
-		//cap->set(CV_CAP_PROP_ISO_SPEED, 200);
 		cap->set(CV_CAP_PROP_EXPOSURE, 0.25);
-		//cap->set(CV_CAP_PROP_AUTO_EXPOSURE, 0);
 		fromFile = false;
 		std::cout << "Videostream von der Kamera wurde gestartet" << std::endl;
 	}
@@ -163,12 +162,13 @@ void CarDetection::loopingThread()
 			// Auswerten der Triggerergebnisse
 			getTrigerResult(&image, &paintImage, &lane1, &trig1, car1);
 			getTrigerResult(&image, &paintImage, &lane2, &trig2, car2);
-			// Zeichnet Beschleunigungspunkte
+			// Zeichnet Beschleunigungspunkte und Skala
 			if (paintMode == 2)
 			{
 				paintTrackVelocity(&paintImage, &lane1, car1);
 				paintTrackVelocity(&paintImage, &lane2, car2);
-			}
+				paintColorScale(&paintImage);
+			}			
 			// Ergebniss anzeigen
 			outImageMutex.lock();
 			paintImage.copyTo(*outImage);
@@ -205,6 +205,14 @@ void CarDetection::saveDebugBufferIfFull()
 		}
 		debugBuffer.clear();
 	}
+}
+
+// --------------------------------------------------------------------------
+// Anzeigen der Geschwindgkeit auf der Karte mit Zahlen
+// --------------------------------------------------------------------------
+void CarDetection::setSpeedNumbers(bool show)
+{
+	speedNumbers = show;
 }
 
 // --------------------------------------------------------------------------
@@ -342,8 +350,56 @@ void CarDetection::paintTrackVelocity(cv::Mat *image, std::vector<cv::Point2f> *
 	for (int i = 0; i < lane->size(); i++)
 	{
 		cv::Point2f pos((*lane)[i].x * downScall, (*lane)[i].y * downScall);
-		cv::circle(*image, pos, 2, hsvScalar(0, (*values)[i], 255), 2);
-		cv::putText(*image, std::to_string((*values)[i]) , pos, cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255), 1);
+		
+		cv::Scalar color = hsvScalar(100 + 0.30 * (*values)[i], 255, 255);
+		//cv::Scalar color = hsvScalar(179, 255, 255);
+		cv::circle(*image, pos, 2, speedToColor[(*values)[i]], 2);
+		//cv::circle(*image, pos, 2, hsvScalar(0, (*values)[i], 255), 2);
+		if (speedNumbers)
+			cv::putText(*image, std::to_string((*values)[i]) , pos, cv::FONT_HERSHEY_PLAIN, 0.7, cv::Scalar(0, 0, 255), 1);
+	}
+}
+
+// --------------------------------------------------------------------------
+// erstellt die Tabelle für die Farben nach Geschwindigkeit
+// --------------------------------------------------------------------------
+void CarDetection::createSpeedToColorTable()
+{
+	for (int i = 0; i <= 255; i++)
+	{
+		int r, g, b;
+		r = i;
+		if (i < 128)
+			g = i * 2;
+		else
+			g = g - 2;
+		b = 255 - i;
+		speedToColor.push_front(cv::Scalar(r, g, b));
+	}
+	
+}
+
+// --------------------------------------------------------------------------
+// Farbskala zeichnen
+// --------------------------------------------------------------------------
+void CarDetection::paintColorScale(cv::Mat *image)
+{
+	int xPosText = image->size().width - 35;
+	int xPosScale = image->size().width - 50;
+	int yPos = 10;
+
+	// Farbskala
+	for (int i = 0; i <= 255; i += 10)
+	{
+		cv::Rect rec(xPosScale, yPos + i, 10, 10);
+		cv::rectangle(*image, rec, speedToColor[i], CV_FILLED);
+	}
+
+	// Beschriftung
+	for (int i = 0; i <= 255; i += 50)
+	{
+		cv::Point p(xPosText, yPos + i + 5);
+		cv::putText(*image, std::to_string(i), p, cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,0), 2);
 	}
 }
 

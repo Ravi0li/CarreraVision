@@ -11,10 +11,10 @@ static void clpHelp()
 		      << std::endl
 		      << "  -h             Zeigt eine Hilfe an" << std::endl
 			  << "  -trackimg      Gibt eine Bilddatei vor, aus der die Strecke berechnet wird" << std::endl
-		      << "  -trackrecord   Das Streckenbild soll mit der Kamera aufgenommen werden" << std::endl
 			  << "  -trackvid      Gibt den Pfad für die Simulierte Videodatei an" << std::endl
 			  << "  -para          Gibt eine Datei vor aus der die Parameter zur Bildverarbeitung gelesen werden" << std::endl
-			  << "  -debugwin      Aktiviert die Anzeige der zusätzlichen Fenster zum Debuggen" << std::endl;
+			  << "  -debugwin      Aktiviert die Anzeige der zusätzlichen Fenster zum Debuggen" << std::endl
+			  << "  -speednumbers  Anzeigen der Geschwindgkeiten als Zahl auf der Karte" << std::endl;
 }
 
 // --------------------------------------------------------------------------
@@ -22,10 +22,10 @@ static void clpHelp()
 // --------------------------------------------------------------------------
 const char* clpKeys =
 {
-	"{help h      |               | Hilfe}"
-	"{trackimg    | ./example.png | Bild der Strecke aus Pfad laden}"
-	"{trackrecord |               | Bild der Strecke mit der Kamera aufnehmen}"
-	"{trackvid    |               | Videodatei für Simulation}"
-	"{para        | ./para.xml    | Datei mit allen Parametern zur Verarbeitung}"
-	"{debugwin    |               | Zeigt alle Fenster an zum Debuggen}"
+	"{help h       |               | Hilfe}"
+	"{trackimg     |               | Bild der Strecke aus Pfad laden}"
+	"{trackvid     |               | Videodatei für Simulation}"
+	"{para         | ./para.xml    | Datei mit allen Parametern zur Verarbeitung}"
+	"{debugwin     |               | Zeigt alle Fenster an zum Debuggen}"
+	"{speednumbers |               | Anzeigen der Geschwindgkeiten als Zahl auf der Karte}"
 };
